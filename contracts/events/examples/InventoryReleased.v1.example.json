@@ -1,0 +1,15 @@
+{
+  "eventId": "3c4d5e6f-7a8b-4c9d-0e1f-2a3b4c5d6e7f",
+  "eventType": "InventoryReleased",
+  "eventVersion": 1,
+  "occurredAt": "2026-07-19T15:45:12.884Z",
+  "correlationId": "88776655-4433-4221-9988-776655443322",
+  "causationId": "77665544-3322-4110-8877-665544332211",
+  "aggregateId": "c5b4a3f2-e1d0-4c9b-8a79-685746352413",
+  "producer": "inventory-service",
+  "payload": {
+    "reservationId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+    "items": [{ "sku": "WIDGET-BLUE-M", "quantity": 2 }],
+    "reasonCode": "PAYMENT_DECLINED"
+  }
+}

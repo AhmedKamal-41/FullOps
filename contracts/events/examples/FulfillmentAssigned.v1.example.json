@@ -1,0 +1,13 @@
+{
+  "eventId": "ea1a9be3-c15d-7d5e-b167-9f4a4a5e2d34",
+  "eventType": "FulfillmentAssigned",
+  "eventVersion": 1,
+  "occurredAt": "2026-07-19T14:32:11.660Z",
+  "correlationId": "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+  "causationId": "d9089ad2-b04c-6c4d-a056-8e3f3f4d1c23",
+  "aggregateId": "9f8e7d6c-5b4a-4321-8765-1a2b3c4d5e6f",
+  "producer": "fulfillment-service",
+  "payload": {
+    "fulfillmentId": "7a8b9c0d-1e2f-4a3b-4c5d-6e7f8a9b0c1d"
+  }
+}

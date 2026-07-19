@@ -1,0 +1,15 @@
+{
+  "eventId": "fb2babf4-d26e-8e6f-c278-a05b5b6f3e45",
+  "eventType": "FulfillmentStatusChanged",
+  "eventVersion": 1,
+  "occurredAt": "2026-07-19T15:05:00.000Z",
+  "correlationId": "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+  "causationId": null,
+  "aggregateId": "9f8e7d6c-5b4a-4321-8765-1a2b3c4d5e6f",
+  "producer": "fulfillment-service",
+  "payload": {
+    "fulfillmentId": "7a8b9c0d-1e2f-4a3b-4c5d-6e7f8a9b0c1d",
+    "previousStatus": "ASSIGNED",
+    "newStatus": "PICKING"
+  }
+}

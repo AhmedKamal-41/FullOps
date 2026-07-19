@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fulfillops.dev/contracts/events/FulfillmentStatusChanged.v1.schema.json",
+  "title": "FulfillmentStatusChanged.v1",
+  "description": "Fulfillment Service moved a fulfillment to a new status: an operator action (PICKING, PACKED, DISPATCHED, DELIVERED) or a cancellation (CANCELLED, only reachable before DISPATCHED). Replaces having one event type per status — consumers switch on newStatus instead of on eventType.",
+  "allOf": [
+    { "$ref": "EventEnvelope.v1.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "FulfillmentStatusChanged" },
+        "eventVersion": { "const": 1 },
+        "producer": { "const": "fulfillment-service" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fulfillmentId", "previousStatus", "newStatus"],
+          "properties": {
+            "fulfillmentId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            },
+            "previousStatus": {
+              "type": "string",
+              "enum": ["ASSIGNED", "PICKING", "PACKED", "DISPATCHED"]
+            },
+            "newStatus": {
+              "type": "string",
+              "enum": ["PICKING", "PACKED", "DISPATCHED", "DELIVERED", "CANCELLED"]
+            },
+            "reasonCode": {
+              "type": "string",
+              "enum": ["OPERATOR_CANCELLED"],
+              "description": "Present only when newStatus is CANCELLED."
+            },
+            "reasonDetail": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        }
+      }
+    }
+  ]
+}

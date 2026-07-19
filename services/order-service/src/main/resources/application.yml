@@ -1,9 +1,23 @@
 spring:
   application:
     name: order-service
+  kafka:
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+    consumer:
+      group-id: order-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
 
 server:
   port: 8081
+
+app:
+  messaging:
+    topic: fulfillops.order.events
 
 management:
   endpoints:

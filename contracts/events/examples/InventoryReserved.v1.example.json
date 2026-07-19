@@ -1,0 +1,17 @@
+{
+  "eventId": "c8f796c1-af3b-5b3c-9f45-7d2f2f3c0b12",
+  "eventType": "InventoryReserved",
+  "eventVersion": 1,
+  "occurredAt": "2026-07-19T14:32:07.402Z",
+  "correlationId": "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+  "causationId": "b7e685b0-9e2a-4a2b-8e34-6c1f1f2b9a01",
+  "aggregateId": "9f8e7d6c-5b4a-4321-8765-1a2b3c4d5e6f",
+  "producer": "inventory-service",
+  "payload": {
+    "reservationId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+    "items": [
+      { "sku": "WIDGET-BLUE-M", "quantity": 2 },
+      { "sku": "WIDGET-RED-L", "quantity": 1 }
+    ]
+  }
+}

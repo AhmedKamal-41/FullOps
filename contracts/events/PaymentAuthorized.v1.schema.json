@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fulfillops.dev/contracts/events/PaymentAuthorized.v1.schema.json",
+  "title": "PaymentAuthorized.v1",
+  "description": "Payment Service's deterministic simulator authorized a fictional payment after inventory was reserved.",
+  "allOf": [
+    { "$ref": "EventEnvelope.v1.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "PaymentAuthorized" },
+        "eventVersion": { "const": 1 },
+        "producer": { "const": "payment-service" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["paymentId", "amount"],
+          "properties": {
+            "paymentId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            },
+            "amount": { "$ref": "Money.v1.schema.json" }
+          }
+        }
+      }
+    }
+  ]
+}

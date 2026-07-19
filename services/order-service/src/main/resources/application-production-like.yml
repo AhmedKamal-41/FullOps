@@ -30,3 +30,11 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+# Built into Spring Boot since 3.4 — no extra logging library dependency needed. MDC
+# content (correlationId, eventId — see CorrelationIdFilter and OutboxRelay/
+# InboxEventListener) is included automatically in the JSON output.
+logging:
+  structured:
+    format:
+      console: logstash

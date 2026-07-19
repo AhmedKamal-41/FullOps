@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fulfillops.dev/contracts/events/FulfillmentAssigned.v1.schema.json",
+  "title": "FulfillmentAssigned.v1",
+  "description": "Fulfillment Service created a fulfillment record after payment was authorized. Its status starts at ASSIGNED; later transitions are reported by FulfillmentStatusChanged.v1.",
+  "allOf": [
+    { "$ref": "EventEnvelope.v1.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "FulfillmentAssigned" },
+        "eventVersion": { "const": 1 },
+        "producer": { "const": "fulfillment-service" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fulfillmentId"],
+          "properties": {
+            "fulfillmentId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

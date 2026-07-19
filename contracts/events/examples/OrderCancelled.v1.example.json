@@ -1,0 +1,14 @@
+{
+  "eventId": "8b9c0d1e-2f3a-4b4c-5d6e-7f8a9b0c1d2e",
+  "eventType": "OrderCancelled",
+  "eventVersion": 1,
+  "occurredAt": "2026-07-19T15:45:13.500Z",
+  "correlationId": "88776655-4433-4221-9988-776655443322",
+  "causationId": "3c4d5e6f-7a8b-4c9d-0e1f-2a3b4c5d6e7f",
+  "aggregateId": "c5b4a3f2-e1d0-4c9b-8a79-685746352413",
+  "producer": "order-service",
+  "payload": {
+    "reasonCode": "PAYMENT_DECLINED",
+    "reasonDetail": "Simulated payment decline; inventory reservation already released."
+  }
+}

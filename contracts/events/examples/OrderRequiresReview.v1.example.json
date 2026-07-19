@@ -1,0 +1,14 @@
+{
+  "eventId": "9c0d1e2f-3a4b-4c5d-6e7f-8a9b0c1d2e3f",
+  "eventType": "OrderRequiresReview",
+  "eventVersion": 1,
+  "occurredAt": "2026-07-19T17:12:44.219Z",
+  "correlationId": "aabbccdd-eeff-4001-8213-445566778899",
+  "causationId": "8899aabb-ccdd-4ef0-8112-334455667788",
+  "aggregateId": "e7d6c5b4-a3f2-4e1d-0c9b-8a7968574635",
+  "producer": "order-service",
+  "payload": {
+    "reasonCode": "COMPENSATION_EXHAUSTED",
+    "reasonDetail": "Refund attempt retried past its budget; needs manual reconciliation."
+  }
+}

@@ -1,6 +1,6 @@
 # Architecture
 
-> Status: design only. No service in this document is implemented yet — see [`PHASE_STATUS.md`](PHASE_STATUS.md).
+> Status: the four backend services are buildable, own their databases, authenticate against a real Keycloak realm, and (as of Phase 3) have working transactional-outbox / idempotent-inbox messaging against real Kafka topics. No business entity, command endpoint, or domain rule is implemented yet — see [`PHASE_STATUS.md`](PHASE_STATUS.md).
 
 ## Overview
 
@@ -71,7 +71,13 @@ flowchart TB
 
 Services coordinate through Kafka events rather than a central orchestrator/saga engine. Each service reacts to the events it cares about and emits its own events in response — see [ADR 0002](adr/0002-choreography-not-orchestration.md). Reliable delivery from each service's database transaction to Kafka uses the transactional outbox pattern on the producer side and an idempotent inbox (deduplication by `eventId`) on the consumer side — see [ADR 0003](adr/0003-outbox-inbox.md).
 
-Kafka delivery is at least once, never exactly once. Every consumer must be safe to run twice on the same event — see [ADR 0004](adr/0004-at-least-once-delivery.md). Every event envelope carries `eventId`, `eventType`, `eventVersion`, `occurredAt`, `correlationId`, `causationId`, `aggregateId`, `producer`, and `payload`, which is enough to deduplicate, trace, and version independently per event type.
+Kafka delivery is at least once, never exactly once. Every consumer must be safe to run twice on the same event — see [ADR 0004](adr/0004-at-least-once-delivery.md). Every event envelope carries `eventId`, `eventType`, `eventVersion`, `occurredAt`, `correlationId`, `causationId`, `aggregateId`, `producer`, and `payload`, which is enough to deduplicate, trace, and version independently per event type. That envelope is a real, JSON-Schema-validated contract — see [`contracts/events/`](../contracts/events/).
+
+### Topics, keys, and retry (implemented in Phase 3)
+
+Each service publishes to exactly one topic, `fulfillops.<service>.events`, keyed by the order ID so every event in one order's saga is ordered on the same partition regardless of which service produced it. `eventId`, `eventType`, `eventVersion`, `correlationId`, and `causationId` ride along as Kafka headers as well as in the JSON body. Consumer retry and dead-lettering use Spring Kafka's own `@RetryableTopic` — transient failures get exponential-backoff retries on auto-created retry topics, and business rejections (a custom `NonRetryableEventProcessingException`) skip straight to the dead-letter topic instead of being retried pointlessly. The full reasoning, including why Resilience4j isn't used, is in [ADR 0009](adr/0009-kafka-topology-and-retry.md).
+
+Each service also runs a scheduled outbox relay (poll due `outbox_event` rows with `FOR UPDATE SKIP LOCKED`, publish, mark sent only after the broker acknowledges) and an inbox check (skip processing if `(event_id, consumer_name)` is already recorded, otherwise process and record in the same transaction) — the mechanism ADR 0003 describes, now real code in every service's `messaging` package. Phase 3 proves the mechanism itself (each service's inbox listener currently consumes its own outbox topic as a self-test); real cross-service listeners — Inventory reacting to `OrderPlaced.v1`, and so on — are a later phase.
 
 ## Operations projection
 
@@ -97,3 +103,4 @@ No API gateway, service discovery, GraphQL, Kubernetes operators, or machine lea
 
 - [`DOMAIN_MODEL.md`](DOMAIN_MODEL.md) — entities, statuses, events, invariants, and compensation rules, including the order lifecycle and payment-decline compensation diagrams.
 - [`adr/`](adr/) — the reasoning behind each boundary and technology decision listed above.
+- [`contracts/events/README.md`](../contracts/events/README.md) — the event envelope and per-event JSON Schema contracts referenced above.

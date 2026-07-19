@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fulfillops.dev/contracts/events/PaymentDeclined.v1.schema.json",
+  "title": "PaymentDeclined.v1",
+  "description": "Payment Service's deterministic simulator declined a fictional payment. This is a business rejection, not an infrastructure failure — it must never be retried.",
+  "allOf": [
+    { "$ref": "EventEnvelope.v1.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "PaymentDeclined" },
+        "eventVersion": { "const": 1 },
+        "producer": { "const": "payment-service" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["amount", "reasonCode"],
+          "properties": {
+            "amount": { "$ref": "Money.v1.schema.json" },
+            "reasonCode": {
+              "type": "string",
+              "enum": ["SIMULATED_INSUFFICIENT_FUNDS", "SIMULATED_CARD_DECLINED"],
+              "description": "The simulator's deterministic decline rule that fired. See services/payment-service for the rule."
+            },
+            "reasonDetail": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        }
+      }
+    }
+  ]
+}

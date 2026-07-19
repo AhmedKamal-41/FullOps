@@ -1,6 +1,16 @@
 spring:
   application:
     name: fulfillment-service
+  kafka:
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+    consumer:
+      group-id: fulfillment-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
 
 server:
   port: 8084
@@ -19,3 +29,7 @@ management:
       enabled: true
     readinessstate:
       enabled: true
+
+app:
+  messaging:
+    topic: fulfillops.fulfillment.events

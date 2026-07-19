@@ -1,6 +1,6 @@
 # Domain Model
 
-> Status: design only. No entity, event, or service in this document is implemented yet — see [`PHASE_STATUS.md`](PHASE_STATUS.md).
+> Status: the event contracts below are real and enforced — see [`contracts/events/`](../contracts/events/) — and every service has working outbox/inbox messaging infrastructure. No entity, command endpoint, or actual business rule (reservation, authorization, fulfillment workflow) is implemented yet; see [`PHASE_STATUS.md`](PHASE_STATUS.md).
 
 ## Service ownership
 
@@ -58,23 +58,23 @@ The payment service is a deterministic simulator: it never contacts a real payme
 stateDiagram-v2
     [*] --> PENDING: OrderPlaced.v1
     PENDING --> INVENTORY_RESERVED: InventoryReserved.v1
-    PENDING --> CANCELLED: InventoryRejected.v1
+    PENDING --> CANCELLED: InventoryRejected.v1 -> OrderCancelled.v1
     INVENTORY_RESERVED --> PAYMENT_AUTHORIZED: PaymentAuthorized.v1
-    INVENTORY_RESERVED --> CANCELLED: PaymentDeclined.v1\n(inventory released)
+    INVENTORY_RESERVED --> CANCELLED: PaymentDeclined.v1 -> OrderCancelled.v1\n(inventory released)
     PAYMENT_AUTHORIZED --> FULFILLMENT_ASSIGNED: FulfillmentAssigned.v1
-    FULFILLMENT_ASSIGNED --> PICKING: FulfillmentPicking.v1
-    PICKING --> PACKED: FulfillmentPacked.v1
-    PACKED --> DISPATCHED: FulfillmentDispatched.v1
-    DISPATCHED --> DELIVERED: FulfillmentDelivered.v1
-    FULFILLMENT_ASSIGNED --> CANCELLED: FulfillmentCancelled.v1\n(payment refunded, inventory released)
-    PICKING --> CANCELLED: FulfillmentCancelled.v1\n(payment refunded, inventory released)
-    PACKED --> CANCELLED: FulfillmentCancelled.v1\n(payment refunded, inventory released)
-    INVENTORY_RESERVED --> REQUIRES_REVIEW: compensation exhausted
-    PAYMENT_AUTHORIZED --> REQUIRES_REVIEW: compensation exhausted
-    FULFILLMENT_ASSIGNED --> REQUIRES_REVIEW: compensation exhausted
+    FULFILLMENT_ASSIGNED --> PICKING: FulfillmentStatusChanged.v1 (newStatus=PICKING)
+    PICKING --> PACKED: FulfillmentStatusChanged.v1 (newStatus=PACKED)
+    PACKED --> DISPATCHED: FulfillmentStatusChanged.v1 (newStatus=DISPATCHED)
+    DISPATCHED --> DELIVERED: FulfillmentStatusChanged.v1 (newStatus=DELIVERED)
+    FULFILLMENT_ASSIGNED --> CANCELLED: FulfillmentStatusChanged.v1 (newStatus=CANCELLED) -> OrderCancelled.v1\n(payment refunded, inventory released)
+    PICKING --> CANCELLED: FulfillmentStatusChanged.v1 (newStatus=CANCELLED) -> OrderCancelled.v1\n(payment refunded, inventory released)
+    PACKED --> CANCELLED: FulfillmentStatusChanged.v1 (newStatus=CANCELLED) -> OrderCancelled.v1\n(payment refunded, inventory released)
+    INVENTORY_RESERVED --> REQUIRES_REVIEW: OrderRequiresReview.v1 (compensation exhausted)
+    PAYMENT_AUTHORIZED --> REQUIRES_REVIEW: OrderRequiresReview.v1 (compensation exhausted)
+    FULFILLMENT_ASSIGNED --> REQUIRES_REVIEW: OrderRequiresReview.v1 (compensation exhausted)
     CANCELLED --> [*]
     DELIVERED --> [*]
-    REQUIRES_REVIEW --> CANCELLED: operator resolves
+    REQUIRES_REVIEW --> CANCELLED: operator resolves -> OrderCancelled.v1
     REQUIRES_REVIEW --> [*]: operator resolves (kept as historical record)
 ```
 
@@ -90,25 +90,26 @@ Cancellation once a fulfillment reaches `DISPATCHED` is not automated — goods 
 | Payment | `AuthorizePayment` | Consumes `InventoryReserved.v1` |
 | Payment | `RefundPayment` | Consumes `FulfillmentCancelled.v1`, or reconciliation job |
 | Fulfillment | `AssignFulfillment` | Consumes `PaymentAuthorized.v1` |
-| Fulfillment | `AdvanceFulfillment` (`StartPicking`, `MarkPacked`, `MarkDispatched`, `MarkDelivered`) | Operator HTTP request |
-| Fulfillment | `CancelFulfillment` | Operator HTTP request, allowed only before `DISPATCHED` |
+| Fulfillment | `AdvanceFulfillment` (`StartPicking`, `MarkPacked`, `MarkDispatched`, `MarkDelivered`) | Operator HTTP request; each emits `FulfillmentStatusChanged.v1` with the corresponding `newStatus` |
+| Fulfillment | `CancelFulfillment` | Operator HTTP request, allowed only before `DISPATCHED`; emits `FulfillmentStatusChanged.v1` with `newStatus=CANCELLED` |
 
 ## Versioned events
 
-All envelopes carry `eventId`, `eventType`, `eventVersion`, `occurredAt`, `correlationId`, `causationId`, `aggregateId`, `producer`, `payload`.
+All envelopes carry `eventId`, `eventType`, `eventVersion`, `occurredAt`, `correlationId`, `causationId`, `aggregateId`, `producer`, `payload`. This is now a real, machine-validated contract, not just prose — see [`contracts/events/`](../contracts/events/) for the JSON Schema for the envelope and every event below, with example fixtures. `aggregateId` is the order ID for every event regardless of producer (see `contracts/events/README.md` for why); each service's own internal ID (a reservation, payment, or fulfillment ID) travels in `payload` instead.
 
 | Event | Producer | Meaning |
 |---|---|---|
 | `OrderPlaced.v1` | Order | A new order was accepted and persisted as `PENDING`. |
 | `InventoryReserved.v1` | Inventory | Stock was reserved for every line item. |
-| `InventoryRejected.v1` | Inventory | At least one line item could not be reserved. |
+| `InventoryRejected.v1` | Inventory | At least one line item could not be reserved. No `Reservation` exists to release later. |
 | `InventoryReleased.v1` | Inventory | A prior reservation was released back to available stock. |
 | `PaymentAuthorized.v1` | Payment | The simulated payment was authorized. |
-| `PaymentDeclined.v1` | Payment | The simulated payment was declined. |
+| `PaymentDeclined.v1` | Payment | The simulated payment was declined — a business rejection, never retried. |
 | `PaymentRefunded.v1` | Payment | A prior authorization was refunded. |
-| `FulfillmentAssigned.v1` | Fulfillment | A fulfillment record was created for the order. |
-| `FulfillmentPicking.v1` / `FulfillmentPacked.v1` / `FulfillmentDispatched.v1` / `FulfillmentDelivered.v1` | Fulfillment | Operator-driven warehouse progress. |
-| `FulfillmentCancelled.v1` | Fulfillment | The fulfillment was cancelled before dispatch. |
+| `FulfillmentAssigned.v1` | Fulfillment | A fulfillment record was created, status `ASSIGNED`. |
+| `FulfillmentStatusChanged.v1` | Fulfillment | The fulfillment moved to a new status (`PICKING`, `PACKED`, `DISPATCHED`, `DELIVERED`, or `CANCELLED`) — one generic event instead of one type per status; consumers switch on `payload.newStatus`. Replaces the separate `FulfillmentPicking.v1` / `FulfillmentPacked.v1` / `FulfillmentDispatched.v1` / `FulfillmentDelivered.v1` / `FulfillmentCancelled.v1` events this document originally sketched in Phase 0 — consolidated once the event contracts were actually written in Phase 3. |
+| `OrderCancelled.v1` | Order | Order Service moved an order to `CANCELLED` after a compensating trigger. |
+| `OrderRequiresReview.v1` | Order | Order Service could not safely auto-resolve an order; an operator must act. |
 
 ## Invariants
 
@@ -130,11 +131,11 @@ All envelopes carry `eventId`, `eventType`, `eventVersion`, `occurredAt`, `corre
 
 | Trigger | Compensation |
 |---|---|
-| `InventoryRejected.v1` | Order Service marks the order `CANCELLED`. Nothing to release; no payment was attempted. |
-| `PaymentDeclined.v1` | Inventory Service releases the reservation (`InventoryReleased.v1`). Order Service marks the order `CANCELLED`. |
-| Operator `CancelFulfillment` (before `DISPATCHED`) | Fulfillment emits `FulfillmentCancelled.v1`. Payment Service refunds (`PaymentRefunded.v1`). Inventory Service releases the reservation (`InventoryReleased.v1`). Order Service marks the order `CANCELLED`. |
-| Cancellation requested at or after `DISPATCHED` | Not automated. Order Service marks the order `REQUIRES_REVIEW`; an operator makes the call (e.g., handle as a return once delivered). |
-| A compensation action itself exhausts its retry budget | The triggering event is dead-lettered, and the order is marked `REQUIRES_REVIEW` rather than left in a stale intermediate status. |
+| `InventoryRejected.v1` | Order Service emits `OrderCancelled.v1`. Nothing to release; no payment was attempted. |
+| `PaymentDeclined.v1` | Inventory Service releases the reservation (`InventoryReleased.v1`). Order Service emits `OrderCancelled.v1`. |
+| Operator `CancelFulfillment` (before `DISPATCHED`) | Fulfillment emits `FulfillmentStatusChanged.v1` (`newStatus=CANCELLED`). Payment Service refunds (`PaymentRefunded.v1`). Inventory Service releases the reservation (`InventoryReleased.v1`). Order Service emits `OrderCancelled.v1`. |
+| Cancellation requested at or after `DISPATCHED` | Not automated. Order Service emits `OrderRequiresReview.v1`; an operator makes the call (e.g., handle as a return once delivered). |
+| A compensation action itself exhausts its retry budget | The triggering event is dead-lettered (see `docs/adr/0003-outbox-inbox.md` and each service's `@RetryableTopic` config), and Order Service emits `OrderRequiresReview.v1` rather than leaving the order in a stale intermediate status. |
 | Drift detected between a service's own state and Order Service's projection (e.g., a crashed consumer that never got redelivery) | A reconciliation job compares state periodically, replays the missing action where safe, or flags `REQUIRES_REVIEW` when it cannot safely auto-resolve. |
 
 ## Happy-path order lifecycle sequence
@@ -163,7 +164,7 @@ sequenceDiagram
     F-->>O: FulfillmentAssigned.v1 (Kafka)
     O->>O: order status -> FULFILLMENT_ASSIGNED
     Op->>F: PATCH /fulfillments/{id} (PICKING, PACKED, DISPATCHED, DELIVERED)
-    F-->>O: FulfillmentPicking.v1 / Packed / Dispatched / Delivered (Kafka)
+    F-->>O: FulfillmentStatusChanged.v1 (Kafka), once per step
     O->>O: order status tracks each step, ends at DELIVERED
     C->>O: GET /orders/{id}
     O-->>C: current status and history
@@ -190,11 +191,12 @@ sequenceDiagram
     P-->>O: PaymentDeclined.v1 (Kafka)
     I->>I: release reservation (idempotent by eventId)
     I-->>O: InventoryReleased.v1 (Kafka)
-    O->>O: order status -> CANCELLED
+    O->>O: emit OrderCancelled.v1 (reasonCode=PAYMENT_DECLINED)
     O-->>C: GET /orders/{id} reflects CANCELLED, reason: payment declined
 ```
 
 ## Related documents
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — service boundaries, choreography, and the system context diagram.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — service boundaries, choreography, the system context diagram, and (as of Phase 3) the Kafka topic/partitioning/retry conventions every service actually runs.
 - [`adr/`](adr/) — the reasoning behind outbox/inbox, at-least-once delivery, and event contract decisions referenced above.
+- [`contracts/events/README.md`](../contracts/events/README.md) — the authoritative, machine-validated wire format for every event named on this page.

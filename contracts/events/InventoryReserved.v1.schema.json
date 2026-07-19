@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fulfillops.dev/contracts/events/InventoryReserved.v1.schema.json",
+  "title": "InventoryReserved.v1",
+  "description": "Inventory Service reserved stock for every line item of an order.",
+  "allOf": [
+    { "$ref": "EventEnvelope.v1.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "InventoryReserved" },
+        "eventVersion": { "const": 1 },
+        "producer": { "const": "inventory-service" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reservationId", "items"],
+          "properties": {
+            "reservationId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            },
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["sku", "quantity"],
+                "properties": {
+                  "sku": { "type": "string", "minLength": 1 },
+                  "quantity": { "type": "integer", "minimum": 1 }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

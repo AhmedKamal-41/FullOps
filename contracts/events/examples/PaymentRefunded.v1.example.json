@@ -1,0 +1,15 @@
+{
+  "eventId": "5e6f7a8b-9c0d-4e1f-2a3b-4c5d6e7f8a9b",
+  "eventType": "PaymentRefunded",
+  "eventVersion": 1,
+  "occurredAt": "2026-07-19T16:02:33.771Z",
+  "correlationId": "99887766-5544-4332-aa11-bb22cc33dd44",
+  "causationId": "44332211-0099-4887-a766-554433221100",
+  "aggregateId": "d6c5b4a3-f2e1-4d0c-9b8a-796857463524",
+  "producer": "payment-service",
+  "payload": {
+    "paymentId": "6f7a8b9c-0d1e-4f2a-3b4c-5d6e7f8a9b0c",
+    "amount": { "currencyCode": "USD", "amount": "42.00" },
+    "reasonCode": "FULFILLMENT_CANCELLED"
+  }
+}

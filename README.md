@@ -2,7 +2,7 @@
 
 **Event-driven order fulfillment and reliability platform.**
 
-> **Status: Phase 2 complete — real local infrastructure and OIDC auth, no business logic yet.** The four services build, migrate their own databases, and enforce JWT authentication against a real Keycloak realm; none of them do anything domain-specific yet. Every feature described below that isn't running code is explicitly labeled **(planned)**. See [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) for what is actually done and how it was verified.
+> **Status: Phase 3 complete — real event contracts and reliable messaging, no business logic yet.** The four services build, migrate their own databases, enforce JWT authentication against a real Keycloak realm, and now publish/consume real Kafka events through a working transactional outbox and idempotent inbox, with JSON-Schema-validated contracts for every event; none of them do anything domain-specific yet. Every feature described below that isn't running code is explicitly labeled **(planned)**. See [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) for what is actually done and how it was verified.
 
 ## Product pitch
 
@@ -43,7 +43,7 @@ Four independently deployable domain services, each owning its own PostgreSQL da
 - **Fulfillment Service** — warehouse workflow state machine and operator actions.
 - **Ops Console** — React + TypeScript operations UI for order/exception management. *(planned)*
 
-All four backend services exist today as buildable, independently runnable Spring Boot 4.1.0 / Java 21 applications (`services/`), each with its own PostgreSQL database (migrated by its own Flyway history), its own outbox/inbox tables ready for Phase 3, and native Spring Security OAuth2 Resource Server authentication against a real local Keycloak realm. None of them contain domain logic or Kafka producer/consumer code yet *(planned)*. No service reads or writes another service's tables, and there is no shared JPA/domain-model module. Full details, diagrams, and the reasoning behind each decision are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/adr/`](docs/adr/).
+All four backend services exist today as buildable, independently runnable Spring Boot 4.1.0 / Java 21 applications (`services/`), each with its own PostgreSQL database (migrated by its own Flyway history), native Spring Security OAuth2 Resource Server authentication against a real local Keycloak realm, and a real transactional outbox / idempotent inbox publishing to and consuming from real Kafka topics — with JSON-Schema-validated event contracts in [`contracts/events/`](contracts/events/). None of them contain domain logic or command endpoints yet *(planned)* — no service places an order, reserves stock, or does anything else business-specific; Phase 3's messaging round-trip is proven with a self-test listener, not real cross-service wiring. No service reads or writes another service's tables, and there is no shared JPA/domain-model module. Full details, diagrams, and the reasoning behind each decision are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/adr/`](docs/adr/).
 
 ## Local development prerequisites
 
@@ -75,7 +75,7 @@ Minimal Dockerfiles exist for all four services (`services/*/Dockerfile`, `make 
 | 0 | Product charter, architecture, agent rules — **complete** |
 | 1 | Buildable four-service monorepo — **complete** |
 | 2 | Reproducible local infrastructure and migrations — **complete** |
-| 3 | Versioned events, outbox/inbox, correlation *(planned)* |
+| 3 | Versioned events, outbox/inbox, correlation — **complete** |
 | 4 | Secure, idempotent Order Service *(planned)* |
 | 5 | Race-safe Inventory Service *(planned)* |
 | 6 | Resilient Payment Service simulator *(planned)* |
@@ -98,6 +98,7 @@ Full detail per phase, including resume signal and acceptance criteria: [`docs/P
 - [`docs/DOMAIN_MODEL.md`](docs/DOMAIN_MODEL.md) — entities, statuses, events, invariants, compensation.
 - [`docs/adr/`](docs/adr/) — architecture decision records.
 - [`docs/runbooks/local-infrastructure.md`](docs/runbooks/local-infrastructure.md) — local infra startup order and troubleshooting.
+- [`contracts/events/README.md`](contracts/events/README.md) — the event envelope and per-event JSON Schema contracts, and the versioning rule.
 - [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) — rules for coding agents working in this repository.
 
 ## Engineering conventions

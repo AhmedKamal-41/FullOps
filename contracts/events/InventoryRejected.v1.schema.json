@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fulfillops.dev/contracts/events/InventoryRejected.v1.schema.json",
+  "title": "InventoryRejected.v1",
+  "description": "Inventory Service could not reserve stock for at least one line item. No Reservation was created, so there is nothing to release later.",
+  "allOf": [
+    { "$ref": "EventEnvelope.v1.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "InventoryRejected" },
+        "eventVersion": { "const": 1 },
+        "producer": { "const": "inventory-service" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["items", "reasonCode"],
+          "properties": {
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["sku", "requestedQuantity", "availableQuantity"],
+                "properties": {
+                  "sku": { "type": "string", "minLength": 1 },
+                  "requestedQuantity": { "type": "integer", "minimum": 1 },
+                  "availableQuantity": { "type": "integer", "minimum": 0 }
+                }
+              }
+            },
+            "reasonCode": {
+              "type": "string",
+              "enum": ["INSUFFICIENT_STOCK"]
+            },
+            "reasonDetail": {
+              "type": "string",
+              "maxLength": 500,
+              "description": "Optional free-text detail. Never PII — this describes stock levels, not customers."
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -20,6 +20,7 @@
     <description>Event-driven order fulfillment and reliability platform: parent build for the Order, Inventory, Payment, and Fulfillment services.</description>
 
     <modules>
+        <module>contracts</module>
         <module>services/order-service</module>
         <module>services/inventory-service</module>
         <module>services/payment-service</module>

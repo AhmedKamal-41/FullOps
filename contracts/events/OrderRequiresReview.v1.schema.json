@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fulfillops.dev/contracts/events/OrderRequiresReview.v1.schema.json",
+  "title": "OrderRequiresReview.v1",
+  "description": "Order Service could not safely auto-resolve an order — a compensation action exhausted its retry budget, or a cancellation was requested at or after DISPATCHED. Surfaced in the ops console's exception queue for an operator.",
+  "allOf": [
+    { "$ref": "EventEnvelope.v1.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "OrderRequiresReview" },
+        "eventVersion": { "const": 1 },
+        "producer": { "const": "order-service" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reasonCode"],
+          "properties": {
+            "reasonCode": {
+              "type": "string",
+              "enum": ["COMPENSATION_EXHAUSTED", "CANCELLATION_AFTER_DISPATCH"]
+            },
+            "reasonDetail": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        }
+      }
+    }
+  ]
+}
