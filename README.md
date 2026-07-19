@@ -2,7 +2,7 @@
 
 **Event-driven order fulfillment and reliability platform.**
 
-> **Status: Phase 3 complete — real event contracts and reliable messaging, no business logic yet.** The four services build, migrate their own databases, enforce JWT authentication against a real Keycloak realm, and now publish/consume real Kafka events through a working transactional outbox and idempotent inbox, with JSON-Schema-validated contracts for every event; none of them do anything domain-specific yet. Every feature described below that isn't running code is explicitly labeled **(planned)**. See [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) for what is actually done and how it was verified.
+> **Status: Phase 4 complete — Order Service accepts secure, idempotent order placement.** The four services build, migrate their own databases, enforce JWT authentication against a real Keycloak realm, and publish/consume real Kafka events through a working transactional outbox and idempotent inbox, with JSON-Schema-validated contracts for every event. Order Service now has real business logic: `POST /api/v1/orders` computes totals server-side, persists an order atomically with an `OrderPlaced.v1` outbox event, and is safe against replay, payload-mismatch reuse, and genuine concurrent duplicate submission of the same idempotency key. The other three services still do nothing domain-specific yet. Every feature described below that isn't running code is explicitly labeled **(planned)**. See [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) for what is actually done and how it was verified.
 
 ## Product pitch
 
@@ -15,21 +15,21 @@ The project exists to demonstrate two things concretely, with working code and t
 
 ## Target users
 
-- **CUSTOMER** — places orders and tracks their status. *(planned)*
+- **CUSTOMER** — places orders (`POST /api/v1/orders`, live) and tracks their status *(order-status tracking beyond `PENDING` is planned, pending the later phases that consume inventory/payment/fulfillment lifecycle events)*.
 - **OPERATOR** — works the fulfillment queue, moves orders through `PICKING` → `PACKED` → `DISPATCHED` → `DELIVERED`, and resolves exceptions. *(planned)*
 - **ADMIN** — has visibility into every service, event stream, and reconciliation job. *(planned)*
 
-## Core workflow *(planned)*
+## Core workflow
 
-1. A customer submits an order using an idempotency key.
-2. Order Service validates the request and persists a `PENDING` order and an `OrderPlaced.v1` outbox event in the same transaction.
-3. Inventory Service reserves stock with a concurrency-safe update and emits `InventoryReserved.v1` or `InventoryRejected.v1`.
-4. Payment Service authorizes a fictional payment after reservation and emits `PaymentAuthorized.v1` or `PaymentDeclined.v1`.
-5. Fulfillment Service creates a fulfillment record after authorization and emits `FulfillmentAssigned.v1`.
-6. An operator advances the fulfillment through `PICKING`, `PACKED`, `DISPATCHED`, and `DELIVERED`.
-7. Order Service consumes lifecycle events and exposes both the customer's order view and an operations projection.
-8. Any failure triggers compensation — release inventory, refund the simulated payment, cancel fulfillment where allowed, or mark the order `REQUIRES_REVIEW` for an operator.
-9. Retry topics, dead-letter topics, reconciliation jobs, and operator recovery actions keep failures visible instead of silent.
+1. A customer submits an order using an idempotency key. **(live)**
+2. Order Service validates the request and persists a `PENDING` order and an `OrderPlaced.v1` outbox event in the same transaction. **(live)**
+3. Inventory Service reserves stock with a concurrency-safe update and emits `InventoryReserved.v1` or `InventoryRejected.v1`. *(planned)*
+4. Payment Service authorizes a fictional payment after reservation and emits `PaymentAuthorized.v1` or `PaymentDeclined.v1`. *(planned)*
+5. Fulfillment Service creates a fulfillment record after authorization and emits `FulfillmentAssigned.v1`. *(planned)*
+6. An operator advances the fulfillment through `PICKING`, `PACKED`, `DISPATCHED`, and `DELIVERED`. *(planned)*
+7. Order Service consumes lifecycle events and exposes both the customer's order view and an operations projection. *(planned)*
+8. Any failure triggers compensation — release inventory, refund the simulated payment, cancel fulfillment where allowed, or mark the order `REQUIRES_REVIEW` for an operator. *(planned)*
+9. Retry topics, dead-letter topics, reconciliation jobs, and operator recovery actions keep failures visible instead of silent. *(planned)*
 
 See [`docs/DOMAIN_MODEL.md`](docs/DOMAIN_MODEL.md) for the full state machine and compensation rules.
 
@@ -43,7 +43,7 @@ Four independently deployable domain services, each owning its own PostgreSQL da
 - **Fulfillment Service** — warehouse workflow state machine and operator actions.
 - **Ops Console** — React + TypeScript operations UI for order/exception management. *(planned)*
 
-All four backend services exist today as buildable, independently runnable Spring Boot 4.1.0 / Java 21 applications (`services/`), each with its own PostgreSQL database (migrated by its own Flyway history), native Spring Security OAuth2 Resource Server authentication against a real local Keycloak realm, and a real transactional outbox / idempotent inbox publishing to and consuming from real Kafka topics — with JSON-Schema-validated event contracts in [`contracts/events/`](contracts/events/). None of them contain domain logic or command endpoints yet *(planned)* — no service places an order, reserves stock, or does anything else business-specific; Phase 3's messaging round-trip is proven with a self-test listener, not real cross-service wiring. No service reads or writes another service's tables, and there is no shared JPA/domain-model module. Full details, diagrams, and the reasoning behind each decision are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/adr/`](docs/adr/).
+All four backend services exist today as buildable, independently runnable Spring Boot 4.1.0 / Java 21 applications (`services/`), each with its own PostgreSQL database (migrated by its own Flyway history), native Spring Security OAuth2 Resource Server authentication against a real local Keycloak realm, and a real transactional outbox / idempotent inbox publishing to and consuming from real Kafka topics — with JSON-Schema-validated event contracts in [`contracts/events/`](contracts/events/). Order Service has real business logic: idempotent order placement (`POST /api/v1/orders`), a customer order view (`GET /api/v1/orders`, `GET /api/v1/orders/{orderId}`), and a real `OrderPlaced.v1` event on the wire — see [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md#phase-4--verification) for exactly how that was verified. Inventory, Payment, and Fulfillment Services still contain no domain logic or command endpoints *(planned)* — their messaging round-trip is proven with a self-test listener, not real cross-service wiring. No service reads or writes another service's tables, and there is no shared JPA/domain-model module. Full details, diagrams, and the reasoning behind each decision are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/adr/`](docs/adr/).
 
 ## Local development prerequisites
 
@@ -76,7 +76,7 @@ Minimal Dockerfiles exist for all four services (`services/*/Dockerfile`, `make 
 | 1 | Buildable four-service monorepo — **complete** |
 | 2 | Reproducible local infrastructure and migrations — **complete** |
 | 3 | Versioned events, outbox/inbox, correlation — **complete** |
-| 4 | Secure, idempotent Order Service *(planned)* |
+| 4 | Secure, idempotent Order Service — **complete** |
 | 5 | Race-safe Inventory Service *(planned)* |
 | 6 | Resilient Payment Service simulator *(planned)* |
 | 7 | Fulfillment workflow and operator controls *(planned)* |

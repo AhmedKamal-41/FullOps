@@ -7,7 +7,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -38,8 +41,24 @@ public class SecurityConfig {
                 authorize
                     .requestMatchers("/actuator/health/**", "/actuator/info")
                     .permitAll()
+                    .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/orders")
+                    .hasRole("CUSTOMER")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/orders")
+                    .hasRole("CUSTOMER")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/orders/*")
+                    .hasAnyRole("CUSTOMER", "OPERATOR", "ADMIN")
                     .anyRequest()
                     .authenticated())
+        // Bearer-token APIs are stateless and have no session cookie for a
+        // cross-site request to forge, so CSRF protection (which exists to
+        // protect session-cookie auth) is not just unneeded but actively wrong
+        // here — left enabled, it 403s legitimate POST/PUT/DELETE requests from
+        // every properly-authenticated client, not just attackers.
+        .csrf(AbstractHttpConfigurer::disable)
+        .sessionManagement(
+            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .oauth2ResourceServer(
             oauth2 ->
                 oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
