@@ -1,13 +1,13 @@
 # Domain Model
 
-> Status: the event contracts below are real and enforced — see [`contracts/events/`](../contracts/events/) — and every service has working outbox/inbox messaging infrastructure. No entity, command endpoint, or actual business rule (reservation, authorization, fulfillment workflow) is implemented yet; see [`PHASE_STATUS.md`](PHASE_STATUS.md).
+> Status: the event contracts below are real and enforced — see [`contracts/events/`](../contracts/events/) — and every service has working outbox/inbox messaging infrastructure. Order Service (Phase 4) and Inventory Service (Phase 5) have real entities, command endpoints, and business rules; Payment and Fulfillment do not yet — see [`PHASE_STATUS.md`](PHASE_STATUS.md).
 
 ## Service ownership
 
 | Service | Owns | Does not own |
 |---|---|---|
 | Order Service | `Order`, `OrderItem`, idempotency records, the operations projection | stock levels, payment state, warehouse state |
-| Inventory Service | `StockItem`, `Reservation` | order data, payment data |
+| Inventory Service | `Product`, `StockItem`, `Reservation` | order data, payment data |
 | Payment Service | `PaymentAuthorization` | order data, inventory data |
 | Fulfillment Service | `Fulfillment` | order data, payment data, inventory data |
 
@@ -34,11 +34,23 @@ No service reads or writes another service's tables. Every cross-service fact (e
 
 ### Inventory Service
 
-**`StockItem`**
-- `sku`, `availableQuantity` (integer), `reservedQuantity` (integer), `version` (optimistic lock)
+**`Product`** — a fictional catalog entry: `productId` (UUID), `sku` (unique), `name`, `description`.
 
-**`Reservation`**
-- `reservationId` (ULID), `orderId`, `sku`, `quantity`, `status` (`RESERVED`, `RELEASED`)
+**`StockItem`** (implemented as `StockLevel`)
+- `sku`, `availableQuantity` (integer), `reservedQuantity` (integer), `version` (optimistic lock — see [`PHASE_STATUS.md`](PHASE_STATUS.md)'s Phase 5 section for the concurrency strategy this enables)
+
+**`Reservation`** (implemented as `InventoryReservation`) — one row per order, not per SKU, so a
+multi-item order's reservation is a single aggregate that succeeds or fails atomically as a whole:
+- `reservationId` (UUID, application-generated — corrected from this doc's earlier "ULID," which
+  no service in this codebase actually uses; every ID here follows `Order.orderId`'s established
+  `UUID.randomUUID()` convention), `orderId` (unique), `status` (`RESERVED`, `RELEASED`), `version`
+  (optimistic lock)
+- `items: ReservationItem[]` — `sku`, `quantity` per line item of the reservation
+
+**`InventoryAdjustment`** — an append-only audit row for every stock mutation, whichever of the
+three caused it (`source`: `ADMIN_ADJUSTMENT`, `RESERVATION`, `RELEASE`): `sku`, `changeQuantity`,
+`quantityBefore`, `quantityAfter`, `reasonCode`, `reasonDetail`, `actor`, `correlationId`,
+`createdAt`.
 
 ### Payment Service
 

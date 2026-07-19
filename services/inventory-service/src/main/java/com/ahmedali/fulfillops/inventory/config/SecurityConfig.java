@@ -7,7 +7,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -22,9 +25,9 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Native Spring Security OAuth2 Resource Server config (not the deprecated Keycloak adapter). Only
- * /api/v1/whoami is secured this phase; health and info stay public so container/orchestrator
- * health checks never need a token.
+ * Native Spring Security OAuth2 Resource Server config (not the deprecated Keycloak adapter).
+ * Product/adjustment commands are ADMIN-only; availability and low-stock reads are open to OPERATOR
+ * and ADMIN alike.
  */
 @Configuration
 public class SecurityConfig {
@@ -38,8 +41,24 @@ public class SecurityConfig {
                 authorize
                     .requestMatchers("/actuator/health/**", "/actuator/info")
                     .permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/products")
+                    .hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.PUT, "/api/v1/products/*")
+                    .hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.POST, "/api/v1/inventory/*/adjustments")
+                    .hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/inventory/**")
+                    .hasAnyRole("OPERATOR", "ADMIN")
                     .anyRequest()
                     .authenticated())
+        // Bearer-token APIs are stateless and have no session cookie for a
+        // cross-site request to forge, so CSRF protection (which exists to
+        // protect session-cookie auth) is not just unneeded but actively wrong
+        // here — left enabled, it 403s legitimate POST/PUT/DELETE requests from
+        // every properly-authenticated client, not just attackers.
+        .csrf(AbstractHttpConfigurer::disable)
+        .sessionManagement(
+            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .oauth2ResourceServer(
             oauth2 ->
                 oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));

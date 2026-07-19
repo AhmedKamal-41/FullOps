@@ -62,3 +62,6 @@ logs: ## Follow infrastructure container logs (Ctrl-C to stop watching).
 
 smoke: ## Start all four services against the running infra, verify JWT + whoami + public health, then stop them.
 	./scripts/smoke.sh
+
+smoke-inventory: ## Create stock, place a real order, and observe the resulting Inventory event on Kafka.
+	./scripts/smoke-inventory-reservation.sh

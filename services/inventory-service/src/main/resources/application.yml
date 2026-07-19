@@ -33,3 +33,18 @@ management:
 app:
   messaging:
     topic: fulfillops.inventory.events
+    order-events-topic: fulfillops.order.events
+  inventory:
+    reservation:
+      # Bounded in-process retry (with jittered backoff, see RetryBackoff) for an
+      # optimistic-lock conflict on stock_level or inventory_reservation — see
+      # ReservationTransaction/ReservationService for why this is a fresh-transaction retry
+      # loop rather than one long transaction.
+      max-attempts: 20
+    low-stock:
+      default-threshold: 10
+    cache:
+      # Belt-and-suspenders TTL alongside the explicit eviction ReservationService/
+      # StockAdjustmentService/ReservationReleaseService already do after every committed
+      # mutation — this only matters if an eviction is ever missed.
+      ttl-seconds: 30

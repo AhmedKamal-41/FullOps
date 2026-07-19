@@ -2,7 +2,7 @@
 
 **Event-driven order fulfillment and reliability platform.**
 
-> **Status: Phase 4 complete — Order Service accepts secure, idempotent order placement.** The four services build, migrate their own databases, enforce JWT authentication against a real Keycloak realm, and publish/consume real Kafka events through a working transactional outbox and idempotent inbox, with JSON-Schema-validated contracts for every event. Order Service now has real business logic: `POST /api/v1/orders` computes totals server-side, persists an order atomically with an `OrderPlaced.v1` outbox event, and is safe against replay, payload-mismatch reuse, and genuine concurrent duplicate submission of the same idempotency key. The other three services still do nothing domain-specific yet. Every feature described below that isn't running code is explicitly labeled **(planned)**. See [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) for what is actually done and how it was verified.
+> **Status: Phase 5 complete — Inventory Service reserves stock with no-oversell concurrency guarantees.** The four services build, migrate their own databases, enforce JWT authentication against a real Keycloak realm, and publish/consume real Kafka events through a working transactional outbox and idempotent inbox, with JSON-Schema-validated contracts for every event. Order Service places orders idempotently (`POST /api/v1/orders`); Inventory Service now has real business logic too: it consumes `OrderPlaced.v1` (the first genuine cross-service Kafka listener in this project), reserves stock with a row-locking concurrency strategy proven safe under real concurrent contention, and exposes ADMIN product/stock-adjustment endpoints and OPERATOR/ADMIN availability reads backed by a Redis cache-aside layer that degrades to PostgreSQL on a cache outage. Payment and Fulfillment Services still do nothing domain-specific yet. Every feature described below that isn't running code is explicitly labeled **(planned)**. See [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) for what is actually done and how it was verified.
 
 ## Product pitch
 
@@ -23,7 +23,7 @@ The project exists to demonstrate two things concretely, with working code and t
 
 1. A customer submits an order using an idempotency key. **(live)**
 2. Order Service validates the request and persists a `PENDING` order and an `OrderPlaced.v1` outbox event in the same transaction. **(live)**
-3. Inventory Service reserves stock with a concurrency-safe update and emits `InventoryReserved.v1` or `InventoryRejected.v1`. *(planned)*
+3. Inventory Service reserves stock with a concurrency-safe update and emits `InventoryReserved.v1` or `InventoryRejected.v1`. **(live)**
 4. Payment Service authorizes a fictional payment after reservation and emits `PaymentAuthorized.v1` or `PaymentDeclined.v1`. *(planned)*
 5. Fulfillment Service creates a fulfillment record after authorization and emits `FulfillmentAssigned.v1`. *(planned)*
 6. An operator advances the fulfillment through `PICKING`, `PACKED`, `DISPATCHED`, and `DELIVERED`. *(planned)*
@@ -43,7 +43,7 @@ Four independently deployable domain services, each owning its own PostgreSQL da
 - **Fulfillment Service** — warehouse workflow state machine and operator actions.
 - **Ops Console** — React + TypeScript operations UI for order/exception management. *(planned)*
 
-All four backend services exist today as buildable, independently runnable Spring Boot 4.1.0 / Java 21 applications (`services/`), each with its own PostgreSQL database (migrated by its own Flyway history), native Spring Security OAuth2 Resource Server authentication against a real local Keycloak realm, and a real transactional outbox / idempotent inbox publishing to and consuming from real Kafka topics — with JSON-Schema-validated event contracts in [`contracts/events/`](contracts/events/). Order Service has real business logic: idempotent order placement (`POST /api/v1/orders`), a customer order view (`GET /api/v1/orders`, `GET /api/v1/orders/{orderId}`), and a real `OrderPlaced.v1` event on the wire — see [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md#phase-4--verification) for exactly how that was verified. Inventory, Payment, and Fulfillment Services still contain no domain logic or command endpoints *(planned)* — their messaging round-trip is proven with a self-test listener, not real cross-service wiring. No service reads or writes another service's tables, and there is no shared JPA/domain-model module. Full details, diagrams, and the reasoning behind each decision are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/adr/`](docs/adr/).
+All four backend services exist today as buildable, independently runnable Spring Boot 4.1.0 / Java 21 applications (`services/`), each with its own PostgreSQL database (migrated by its own Flyway history), native Spring Security OAuth2 Resource Server authentication against a real local Keycloak realm, and a real transactional outbox / idempotent inbox publishing to and consuming from real Kafka topics — with JSON-Schema-validated event contracts in [`contracts/events/`](contracts/events/). Order Service has real business logic: idempotent order placement (`POST /api/v1/orders`), a customer order view (`GET /api/v1/orders`, `GET /api/v1/orders/{orderId}`), and a real `OrderPlaced.v1` event on the wire. Inventory Service now consumes that event for real — its first genuine cross-service listener, not a self-test — and reserves stock with a `SELECT ... FOR UPDATE` concurrency strategy proven under real concurrent load (`ReservationConcurrencyIT` races 10 orders for 5 units of one SKU and confirms exactly 5 win, never negative stock), plus ADMIN product/adjustment endpoints and a Redis-backed availability cache that degrades to PostgreSQL on outage — see [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md#phase-5--verification) for exactly how that was verified. Payment and Fulfillment Services still contain no domain logic or command endpoints *(planned)* — their messaging round-trip is still proven only with a self-test listener, not real cross-service wiring. No service reads or writes another service's tables, and there is no shared JPA/domain-model module. Full details, diagrams, and the reasoning behind each decision are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/adr/`](docs/adr/).
 
 ## Local development prerequisites
 
@@ -57,6 +57,7 @@ cp .env.example .env
 make infra-up              # PostgreSQL, Kafka, Redis, Keycloak — waits until all are healthy
 make run-order              # or run-inventory / run-payment / run-fulfillment, each in its own terminal
 make smoke                  # or: start all four services itself, exercise JWT auth, then stop them
+make smoke-inventory        # create stock, place a real order, observe the InventoryReserved.v1 event
 ./mvnw -B clean verify      # format check, build, unit + Testcontainers integration tests
 ```
 
@@ -77,7 +78,7 @@ Minimal Dockerfiles exist for all four services (`services/*/Dockerfile`, `make 
 | 2 | Reproducible local infrastructure and migrations — **complete** |
 | 3 | Versioned events, outbox/inbox, correlation — **complete** |
 | 4 | Secure, idempotent Order Service — **complete** |
-| 5 | Race-safe Inventory Service *(planned)* |
+| 5 | Race-safe Inventory Service — **complete** |
 | 6 | Resilient Payment Service simulator *(planned)* |
 | 7 | Fulfillment workflow and operator controls *(planned)* |
 | 8 | Saga compensation and recovery *(planned)* |

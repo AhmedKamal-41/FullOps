@@ -77,7 +77,7 @@ Kafka delivery is at least once, never exactly once. Every consumer must be safe
 
 Each service publishes to exactly one topic, `fulfillops.<service>.events`, keyed by the order ID so every event in one order's saga is ordered on the same partition regardless of which service produced it. `eventId`, `eventType`, `eventVersion`, `correlationId`, and `causationId` ride along as Kafka headers as well as in the JSON body. Consumer retry and dead-lettering use Spring Kafka's own `@RetryableTopic` — transient failures get exponential-backoff retries on auto-created retry topics, and business rejections (a custom `NonRetryableEventProcessingException`) skip straight to the dead-letter topic instead of being retried pointlessly. The full reasoning, including why Resilience4j isn't used, is in [ADR 0009](adr/0009-kafka-topology-and-retry.md).
 
-Each service also runs a scheduled outbox relay (poll due `outbox_event` rows with `FOR UPDATE SKIP LOCKED`, publish, mark sent only after the broker acknowledges) and an inbox check (skip processing if `(event_id, consumer_name)` is already recorded, otherwise process and record in the same transaction) — the mechanism ADR 0003 describes, now real code in every service's `messaging` package. Phase 3 proves the mechanism itself (each service's inbox listener currently consumes its own outbox topic as a self-test); real cross-service listeners — Inventory reacting to `OrderPlaced.v1`, and so on — are a later phase.
+Each service also runs a scheduled outbox relay (poll due `outbox_event` rows with `FOR UPDATE SKIP LOCKED`, publish, mark sent only after the broker acknowledges) and an inbox check (skip processing if `(event_id, consumer_name)` is already recorded, otherwise process and record in the same transaction) — the mechanism ADR 0003 describes, now real code in every service's `messaging` package. Phase 3 proved the mechanism itself with each service self-consuming its own outbox topic; Phase 5 replaced Inventory Service's scaffold with its first real cross-service listener, `OrderPlacedListener`, consuming `fulfillops.order.events` to reserve stock. Payment and Fulfillment's real cross-service listeners are still later phases.
 
 ## Operations projection
 
@@ -89,7 +89,7 @@ Keycloak provides OIDC identity for local development; each backend service is a
 
 ## Redis
 
-Redis is used only for disposable, rebuildable caches (for example, hot-path read caching). No service treats Redis as a system of record — losing the cache must never lose or corrupt data.
+Redis is used only for disposable, rebuildable caches (for example, hot-path read caching). No service treats Redis as a system of record — losing the cache must never lose or corrupt data. Inventory Service (Phase 5) is the first concrete example: `GET /api/v1/inventory/{sku}` is a cache-aside read (`InventoryAvailabilityCache`, evicted after every committed reservation/release/adjustment, with a short TTL as a backstop), while PostgreSQL alone — never the cache — decides whether a reservation succeeds. Every Redis call is wrapped so a Redis outage degrades reads straight to PostgreSQL and only shows up as an `inventory.cache.failures` metric, never a failed request.
 
 ## Frontend
 
