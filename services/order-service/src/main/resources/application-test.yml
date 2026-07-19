@@ -1,0 +1,20 @@
+# Used by Testcontainers-based integration tests. Datasource, Kafka, and Redis
+# connection details are supplied dynamically by Spring Boot's Testcontainers
+# @ServiceConnection support (see src/test/.../config/TestcontainersConfiguration.java),
+# not by this file. OIDC is deliberately absent here too: setting a real
+# issuer-uri would make Spring eagerly fetch OIDC discovery metadata over the
+# network at context startup, which would fail with no Keycloak reachable —
+# tests instead provide a network-free JwtDecoder bean directly (see
+# src/test/.../config/TestSecurityConfig.java).
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+management:
+  endpoint:
+    health:
+      show-details: always

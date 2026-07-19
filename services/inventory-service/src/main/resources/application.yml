@@ -12,4 +12,10 @@ management:
         include: health,info
   endpoint:
     health:
-      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true

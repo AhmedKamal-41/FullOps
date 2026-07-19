@@ -2,7 +2,7 @@
 
 **Event-driven order fulfillment and reliability platform.**
 
-> **Status: Phase 1 complete — buildable monorepo, no business logic yet.** The four services build, start, and pass a health check; none of them do anything domain-specific yet. Every feature described below that isn't running code is explicitly labeled **(planned)**. See [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) for what is actually done and how it was verified.
+> **Status: Phase 2 complete — real local infrastructure and OIDC auth, no business logic yet.** The four services build, migrate their own databases, and enforce JWT authentication against a real Keycloak realm; none of them do anything domain-specific yet. Every feature described below that isn't running code is explicitly labeled **(planned)**. See [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) for what is actually done and how it was verified.
 
 ## Product pitch
 
@@ -43,28 +43,30 @@ Four independently deployable domain services, each owning its own PostgreSQL da
 - **Fulfillment Service** — warehouse workflow state machine and operator actions.
 - **Ops Console** — React + TypeScript operations UI for order/exception management. *(planned)*
 
-All four backend services exist today as buildable, independently runnable Spring Boot 4.1.0 / Java 21 applications with Actuator health checks — see `services/`. None of them contain domain logic, persistence, or Kafka integration yet; each is currently just an entry point plus a context-load test *(planned: business logic, persistence, and events)*. Kafka is the only integration path between services once it's introduced. No service reads or writes another service's tables, and there is no shared JPA/domain-model module. Full details, diagrams, and the reasoning behind each decision are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/adr/`](docs/adr/).
+All four backend services exist today as buildable, independently runnable Spring Boot 4.1.0 / Java 21 applications (`services/`), each with its own PostgreSQL database (migrated by its own Flyway history), its own outbox/inbox tables ready for Phase 3, and native Spring Security OAuth2 Resource Server authentication against a real local Keycloak realm. None of them contain domain logic or Kafka producer/consumer code yet *(planned)*. No service reads or writes another service's tables, and there is no shared JPA/domain-model module. Full details, diagrams, and the reasoning behind each decision are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/adr/`](docs/adr/).
 
 ## Local development prerequisites
 
-Verified locally (JDK 21, no Docker required):
+Verified locally:
 
-- Java 21 (JDK)
-- Maven (or the bundled `./mvnw` / `mvnw.cmd` wrapper — no separate Maven install needed)
+- Java 21 (JDK) — Maven is bundled via `./mvnw` / `mvnw.cmd`, no separate install needed
+- Docker and Docker Compose
 
 ```
-./mvnw -B clean verify   # format check, build, unit tests for all four services
-make run-order            # or run-inventory / run-payment / run-fulfillment
+cp .env.example .env
+make infra-up              # PostgreSQL, Kafka, Redis, Keycloak — waits until all are healthy
+make run-order              # or run-inventory / run-payment / run-fulfillment, each in its own terminal
+make smoke                  # or: start all four services itself, exercise JWT auth, then stop them
+./mvnw -B clean verify      # format check, build, unit + Testcontainers integration tests
 ```
 
-Each service exposes `GET /actuator/health` once running (`order-service` on port 8081, `inventory-service` on 8082, `payment-service` on 8083, `fulfillment-service` on 8084 — see `.env.example`).
+Each service exposes `GET /actuator/health` (public) and `GET /api/v1/whoami` (requires a bearer token) once running — `order-service` on port 8081, `inventory-service` on 8082, `payment-service` on 8083, `fulfillment-service` on 8084. Full startup order and troubleshooting: [`docs/runbooks/local-infrastructure.md`](docs/runbooks/local-infrastructure.md).
 
-Not yet required, but coming in Phase 2:
+Not yet required, but coming in a later phase:
 
-- Docker and Docker Compose (PostgreSQL, Kafka, Redis, Keycloak, observability stack) *(planned)*
 - Node.js LTS (for `apps/ops-console`) *(planned)*
 
-Minimal Dockerfiles exist for all four services (`services/*/Dockerfile`, `make docker-build`) and have been built and run locally, but there is no Docker Compose stack wiring them together yet.
+Minimal Dockerfiles exist for all four services (`services/*/Dockerfile`, `make docker-build`), and `infra/compose/docker-compose.yml` runs the platform infrastructure — but the four services themselves aren't part of that Compose stack yet; they run directly on the host against it.
 
 ## Roadmap
 
@@ -72,7 +74,7 @@ Minimal Dockerfiles exist for all four services (`services/*/Dockerfile`, `make 
 |---|---|
 | 0 | Product charter, architecture, agent rules — **complete** |
 | 1 | Buildable four-service monorepo — **complete** |
-| 2 | Reproducible local infrastructure and migrations *(planned)* |
+| 2 | Reproducible local infrastructure and migrations — **complete** |
 | 3 | Versioned events, outbox/inbox, correlation *(planned)* |
 | 4 | Secure, idempotent Order Service *(planned)* |
 | 5 | Race-safe Inventory Service *(planned)* |
@@ -95,6 +97,7 @@ Full detail per phase, including resume signal and acceptance criteria: [`docs/P
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system design and diagrams.
 - [`docs/DOMAIN_MODEL.md`](docs/DOMAIN_MODEL.md) — entities, statuses, events, invariants, compensation.
 - [`docs/adr/`](docs/adr/) — architecture decision records.
+- [`docs/runbooks/local-infrastructure.md`](docs/runbooks/local-infrastructure.md) — local infra startup order and troubleshooting.
 - [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) — rules for coding agents working in this repository.
 
 ## Engineering conventions
