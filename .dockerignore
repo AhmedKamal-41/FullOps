@@ -1,0 +1,20 @@
+# Applies to every service Dockerfile — they all build with the repository root as
+# their build context (see the comment at the top of each services/*/Dockerfile).
+
+.git/
+.github/
+docs/
+apps/
+tests/
+infra/
+*.md
+
+target/
+**/target/
+
+.idea/
+*.iml
+.vscode/
+
+.env
+*.log

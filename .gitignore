@@ -1,0 +1,21 @@
+target/
+*.class
+
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# Claude Code session-local permission settings, not project source.
+.claude/settings.local.json
+
+.DS_Store
+Thumbs.db
+
+.env
+*.log
+
+# Frontend build output (apps/ops-console arrives in a later phase)
+node_modules/
+dist/
