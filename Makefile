@@ -6,7 +6,7 @@ COMPOSE = docker compose --env-file .env -f infra/compose/docker-compose.yml
 
 .PHONY: verify format format-check test build docker-build clean \
         run-order run-inventory run-payment run-fulfillment \
-        infra-up infra-down infra-status logs smoke
+        infra-up infra-down infra-status logs smoke smoke-inventory smoke-payment
 
 verify: ## Full build: format check, compile, unit tests, coverage report.
 	./mvnw -B clean verify
@@ -65,3 +65,6 @@ smoke: ## Start all four services against the running infra, verify JWT + whoami
 
 smoke-inventory: ## Create stock, place a real order, and observe the resulting Inventory event on Kafka.
 	./scripts/smoke-inventory-reservation.sh
+
+smoke-payment: ## Place one normal-priced and one seeded-decline-priced order, and observe both PaymentAuthorized/PaymentDeclined events on Kafka.
+	./scripts/smoke-payment-authorization.sh

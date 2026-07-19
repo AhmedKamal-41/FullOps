@@ -1,6 +1,6 @@
 # Domain Model
 
-> Status: the event contracts below are real and enforced — see [`contracts/events/`](../contracts/events/) — and every service has working outbox/inbox messaging infrastructure. Order Service (Phase 4) and Inventory Service (Phase 5) have real entities, command endpoints, and business rules; Payment and Fulfillment do not yet — see [`PHASE_STATUS.md`](PHASE_STATUS.md).
+> Status: the event contracts below are real and enforced — see [`contracts/events/`](../contracts/events/) — and every service has working outbox/inbox messaging infrastructure. Order Service (Phase 4), Inventory Service (Phase 5), and Payment Service (Phase 6) have real entities, command endpoints, and business rules; Fulfillment does not yet — see [`PHASE_STATUS.md`](PHASE_STATUS.md).
 
 ## Service ownership
 
@@ -8,7 +8,7 @@
 |---|---|---|
 | Order Service | `Order`, `OrderItem`, idempotency records, the operations projection | stock levels, payment state, warehouse state |
 | Inventory Service | `Product`, `StockItem`, `Reservation` | order data, payment data |
-| Payment Service | `PaymentAuthorization` | order data, inventory data |
+| Payment Service | `Payment`, `PaymentAttempt`, `Refund`, `SimulatorRule`, `OrderPaymentContext` | order data, inventory data |
 | Fulfillment Service | `Fulfillment` | order data, payment data, inventory data |
 
 No service reads or writes another service's tables. Every cross-service fact (e.g., "was payment authorized?") is learned by consuming that owner's events, not by querying its database.
@@ -54,10 +54,38 @@ three caused it (`source`: `ADMIN_ADJUSTMENT`, `RESERVATION`, `RELEASE`): `sku`,
 
 ### Payment Service
 
-**`PaymentAuthorization`**
-- `paymentId` (ULID), `orderId`, `amount` (`BigDecimal`), `status` (`AUTHORIZED`, `DECLINED`, `REFUNDED`)
+**`Payment`** (implemented as `Payment`, corrected from this doc's earlier "ULID" — every ID in
+this codebase follows `Order.orderId`'s established `UUID.randomUUID()` convention, same
+correction Phase 5 made for `InventoryReservation.reservationId`)
+- `paymentId` (UUID), `orderId` (unique), `customerId`, `amount` (`BigDecimal`), `currencyCode`,
+  `status` (`AUTHORIZED`, `DECLINED`, `REFUNDED`), `declineReasonCode`/`declineReasonDetail`
+  (set only when `DECLINED`), `version` (optimistic lock)
 
-The payment service is a deterministic simulator: it never contacts a real payment network and never stores card data. Decline/success outcomes are derived from a documented, reproducible rule (e.g., a threshold or a designated test amount/customer), not randomness, so tests are stable.
+**`PaymentAttempt`** — an append-only audit row per attempt against the (simulated) provider for an
+order, including attempts that never produce a `Payment` row because every one of them failed:
+`orderId`, `attemptNumber`, `outcome` (`APPROVED`, `DECLINED`, `TIMEOUT`, `TEMPORARY_ERROR`,
+`CIRCUIT_OPEN`), `detail`.
+
+**`Refund`** — at most one per payment (`paymentId` unique): `refundId`, `paymentId`, `amount`,
+`currencyCode`, `reasonCode`.
+
+**`SimulatorRule`** — the deterministic, seeded decision table the simulator consults, keyed by
+`matchAmount`: `outcome` (`APPROVE`, `DECLINE_INSUFFICIENT_FUNDS`, `DECLINE_CARD_DECLINED`,
+`TIMEOUT`, `TEMPORARY_ERROR`), `failingAttempts` (how many attempts fail before a `TIMEOUT`/
+`TEMPORARY_ERROR` rule recovers on its own; `0` means it never does).
+
+**`OrderPaymentContext`** — Payment Service's own local projection built from consuming
+`OrderPlaced.v1`, holding only what it needs and CLAUDE.md allows: `orderId`, `customerId`,
+`amount`, `currencyCode`. Never order line items, never anything card- or PII-shaped.
+
+The payment service is a deterministic simulator: it never contacts a real payment network and never
+accepts, logs, or persists a card number, bank detail, or SSN. Decline/timeout/temporary-error
+outcomes are derived from `SimulatorRule`, keyed by the order's amount — the same "magic test
+amount" convention real card-processor sandboxes use (e.g. Adyen's per-amount test result codes) —
+never randomness, so tests and demos are stable. See
+[ADR 0010](adr/0010-payment-simulator-resilience.md) for why the retry/circuit-breaker wrapper
+around the provider call uses Resilience4j's framework-agnostic core libraries rather than its
+Spring Boot starter.
 
 ### Fulfillment Service
 
@@ -99,8 +127,8 @@ Cancellation once a fulfillment reaches `DISPATCHED` is not automated — goods 
 | Order | `PlaceOrder` | Customer HTTP request (idempotency key required) |
 | Inventory | `ReserveStock` | Consumes `OrderPlaced.v1` |
 | Inventory | `ReleaseStock` | Consumes `PaymentDeclined.v1` or `FulfillmentCancelled.v1`, or reconciliation job |
-| Payment | `AuthorizePayment` | Consumes `InventoryReserved.v1` |
-| Payment | `RefundPayment` | Consumes `FulfillmentCancelled.v1`, or reconciliation job |
+| Payment | `AuthorizePayment` | Consumes `InventoryReserved.v1`, using order/customer/amount/currency context built by separately consuming `OrderPlaced.v1` (see `OrderPaymentContext` above) |
+| Payment | `RefundPayment` | OPERATOR/ADMIN HTTP request (`POST /api/v1/payments/{paymentId}/refunds`, `Idempotency-Key` required) as of Phase 6, since no event yet triggers it automatically — `FulfillmentCancelled`-driven refund and a reconciliation job are still later-phase work |
 | Fulfillment | `AssignFulfillment` | Consumes `PaymentAuthorized.v1` |
 | Fulfillment | `AdvanceFulfillment` (`StartPicking`, `MarkPacked`, `MarkDispatched`, `MarkDelivered`) | Operator HTTP request; each emits `FulfillmentStatusChanged.v1` with the corresponding `newStatus` |
 | Fulfillment | `CancelFulfillment` | Operator HTTP request, allowed only before `DISPATCHED`; emits `FulfillmentStatusChanged.v1` with `newStatus=CANCELLED` |
@@ -126,7 +154,7 @@ All envelopes carry `eventId`, `eventType`, `eventVersion`, `occurredAt`, `corre
 ## Invariants
 
 - Inventory: `reservedQuantity + availableQuantity` never exceeds total stock for a SKU, and `availableQuantity` is never negative, even under concurrent reservation attempts for the same SKU.
-- Payment: at most one non-refunded `PaymentAuthorization` exists per order.
+- Payment: at most one non-refunded `Payment` exists per order (`payments.order_id` is unique), and at most one `Refund` exists per `Payment` (`refunds.payment_id` is unique).
 - Fulfillment: status only moves forward (`ASSIGNED → PICKING → PACKED → DISPATCHED → DELIVERED`), except for operator-triggered `CANCELLED`, which is only reachable before `DISPATCHED`.
 - Order: status transitions follow the state machine above; an idempotency key reused with a different request payload (different fingerprint) is rejected as a conflict, never treated as a duplicate success.
 - Every consumer is idempotent by `eventId` — reprocessing the same event (Kafka's at-least-once redelivery) must not double-reserve stock, double-charge, or double-create a fulfillment.

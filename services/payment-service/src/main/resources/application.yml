@@ -33,3 +33,17 @@ management:
 app:
   messaging:
     topic: fulfillops.payment.events
+    order-events-topic: fulfillops.order.events
+    inventory-events-topic: fulfillops.inventory.events
+  payment:
+    provider:
+      retry:
+        max-attempts: 3
+        initial-interval-ms: 200
+        backoff-multiplier: 2.0
+      circuit-breaker:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state-ms: 30000
+        permitted-calls-in-half-open-state: 3
