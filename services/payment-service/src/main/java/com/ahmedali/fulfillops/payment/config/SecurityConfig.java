@@ -43,6 +43,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/v1/payments/**")
                     .hasAnyRole("OPERATOR", "ADMIN")
+                    .requestMatchers("/api/v1/admin/**")
+                    .hasRole("ADMIN")
                     .anyRequest()
                     .authenticated())
         // Bearer-token APIs are stateless and have no session cookie for a

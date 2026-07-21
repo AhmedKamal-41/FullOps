@@ -1,6 +1,7 @@
 package com.ahmedali.fulfillops.payment.domain;
 
-import jakarta.persistence.Column;
+import jakarta.persistence.Colum
+n;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;

@@ -11,11 +11,7 @@ import com.ahmedali.fulfillops.order.web.dto.OrderItemResponse;
 import com.ahmedali.fulfillops.order.web.dto.OrderResponse;
 import com.ahmedali.fulfillops.order.web.dto.OrderSummaryResponse;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -75,7 +71,7 @@ public class OrderService {
     return orderRepository
         .findById(orderId)
         .filter(order -> requesterIsStaff || order.getCustomerId().equals(requesterId))
-        .map(this::toResponse);
+        .map(OrderService::toResponse);
   }
 
   public Page<OrderSummaryResponse> listOrders(UUID customerId, Pageable pageable) {
@@ -112,20 +108,10 @@ public class OrderService {
                     .append(item.quantity())
                     .append(':')
                     .append(item.unitPrice()));
-    return sha256Hex(canonical.toString());
+    return RequestFingerprint.sha256Hex(canonical.toString());
   }
 
-  private static String sha256Hex(String input) {
-    try {
-      MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      return HexFormat.of().formatHex(digest.digest(input.getBytes(StandardCharsets.UTF_8)));
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException(
-          "SHA-256 is a JDK-mandated algorithm and must always be available", e);
-    }
-  }
-
-  private OrderResponse toResponse(Order order) {
+  static OrderResponse toResponse(Order order) {
     var items =
         order.getItems().stream()
             .map(
@@ -142,7 +128,8 @@ public class OrderService {
         order.getStatus().name(),
         items,
         toMoneyDto(order.getCurrencyCode(), order.getTotalAmount()),
-        order.getCreatedAt());
+        order.getCreatedAt(),
+        order.getCorrelationId());
   }
 
   private static OrderSummaryResponse toSummary(Order order) {

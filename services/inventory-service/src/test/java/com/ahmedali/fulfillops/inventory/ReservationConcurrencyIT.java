@@ -9,7 +9,7 @@ import com.ahmedali.fulfillops.inventory.domain.ProductRepository;
 import com.ahmedali.fulfillops.inventory.domain.StockLevel;
 import com.ahmedali.fulfillops.inventory.domain.StockLevelRepository;
 import com.ahmedali.fulfillops.inventory.messaging.EventEnvelope;
-import com.ahmedali.fulfillops.inventory.messaging.OrderPlacedListener;
+import com.ahmedali.fulfillops.inventory.messaging.OrderEventsListener;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +43,7 @@ class ReservationConcurrencyIT {
   private static final int CONCURRENT_ORDERS = 10;
   private static final int STARTING_STOCK = 5;
 
-  @Autowired private OrderPlacedListener orderPlacedListener;
+  @Autowired private OrderEventsListener orderEventsListener;
   @Autowired private ProductRepository productRepository;
   @Autowired private StockLevelRepository stockLevelRepository;
   @Autowired private JdbcTemplate jdbcTemplate;
@@ -68,7 +68,7 @@ class ReservationConcurrencyIT {
                                 orderPlacedEnvelopeJson(UUID.randomUUID(), UUID.randomUUID(), sku);
                             ready.countDown();
                             go.await();
-                            orderPlacedListener.onMessage(envelopeJson);
+                            orderEventsListener.onMessage(envelopeJson);
                             return null;
                           }))
               .toList();

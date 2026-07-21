@@ -2,12 +2,14 @@ package com.ahmedali.fulfillops.payment.service;
 
 import com.ahmedali.fulfillops.payment.domain.OrderPaymentContext;
 import com.ahmedali.fulfillops.payment.domain.OrderPaymentContextRepository;
+import com.ahmedali.fulfillops.payment.domain.PaymentAttemptOutcome;
 import com.ahmedali.fulfillops.payment.domain.PaymentAttemptRepository;
 import com.ahmedali.fulfillops.payment.domain.PaymentRepository;
 import com.ahmedali.fulfillops.payment.provider.ProviderAuthorizationOutcome;
 import com.ahmedali.fulfillops.payment.provider.ProviderAuthorizationRequest;
 import com.ahmedali.fulfillops.payment.resilience.PaymentAttemptListener;
 import com.ahmedali.fulfillops.payment.resilience.PaymentAuthorizationClient;
+import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +27,15 @@ import org.springframework.stereotype.Service;
 public class AuthorizationService {
 
   private static final Logger log = LoggerFactory.getLogger(AuthorizationService.class);
+
+  // Order Service's operations projection (Phase 9) tracks how many transient failures preceded
+  // a final authorize/decline outcome, as a KPI proxy for payment technical-failure rate — see
+  // AuthorizationTransaction and contracts/events/PaymentAuthorized.v1.schema.json.
+  private static final List<PaymentAttemptOutcome> TECHNICAL_FAILURE_OUTCOMES =
+      List.of(
+          PaymentAttemptOutcome.TIMEOUT,
+          PaymentAttemptOutcome.TEMPORARY_ERROR,
+          PaymentAttemptOutcome.CIRCUIT_OPEN);
 
   private final OrderPaymentContextRepository orderPaymentContextRepository;
   private final PaymentRepository paymentRepository;
@@ -70,6 +81,11 @@ public class AuthorizationService {
     ProviderAuthorizationOutcome outcome =
         paymentAuthorizationClient.authorize(request, startingAttemptNumber, listener);
 
+    // Every attempt this call made (and any from earlier redeliveries of the same order) is
+    // already committed by paymentAttemptRecorder's own REQUIRES_NEW transaction by this point.
+    int precedingTechnicalFailureCount =
+        paymentAttemptRepository.countByOrderIdAndOutcomeIn(orderId, TECHNICAL_FAILURE_OUTCOMES);
+
     switch (outcome) {
       case ProviderAuthorizationOutcome.Approved ignored ->
           authorizationTransaction.recordApproved(
@@ -77,6 +93,7 @@ public class AuthorizationService {
               context.getCustomerId(),
               context.getAmount(),
               context.getCurrencyCode(),
+              precedingTechnicalFailureCount,
               correlationId,
               causationId);
       case ProviderAuthorizationOutcome.Declined declined ->
@@ -87,6 +104,7 @@ public class AuthorizationService {
               context.getCurrencyCode(),
               declined.reasonCode(),
               declined.reasonDetail(),
+              precedingTechnicalFailureCount,
               correlationId,
               causationId);
     }

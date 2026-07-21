@@ -91,9 +91,9 @@ class AuthorizationServiceTest {
 
     verify(authorizationTransaction)
         .recordApproved(
-            orderId, customerId, new BigDecimal("50.00"), "USD", correlationId, causationId);
+            orderId, customerId, new BigDecimal("50.00"), "USD", 0, correlationId, causationId);
     verify(authorizationTransaction, never())
-        .recordDeclined(any(), any(), any(), any(), any(), any(), any(), any());
+        .recordDeclined(any(), any(), any(), any(), any(), any(), anyInt(), any(), any());
   }
 
   @Test
@@ -114,10 +114,25 @@ class AuthorizationServiceTest {
             "USD",
             "SIMULATED_INSUFFICIENT_FUNDS",
             "not enough funds",
+            0,
             correlationId,
             causationId);
     verify(authorizationTransaction, never())
-        .recordApproved(any(), any(), any(), any(), any(), any());
+        .recordApproved(any(), any(), any(), any(), anyInt(), any(), any());
+  }
+
+  @Test
+  void thePrecedingTechnicalFailureCountIsReadFromPaymentAttemptsAndPassedThrough() {
+    stubContext(new BigDecimal("50.00"));
+    when(paymentAttemptRepository.countByOrderIdAndOutcomeIn(eq(orderId), any())).thenReturn(2);
+    when(paymentAuthorizationClient.authorize(any(), anyInt(), any()))
+        .thenReturn(new ProviderAuthorizationOutcome.Approved());
+
+    authorizationService.authorize(orderId, correlationId, causationId);
+
+    verify(authorizationTransaction)
+        .recordApproved(
+            orderId, customerId, new BigDecimal("50.00"), "USD", 2, correlationId, causationId);
   }
 
   @Test

@@ -35,6 +35,7 @@ app:
     topic: fulfillops.payment.events
     order-events-topic: fulfillops.order.events
     inventory-events-topic: fulfillops.inventory.events
+    fulfillment-events-topic: fulfillops.fulfillment.events
   payment:
     provider:
       retry:

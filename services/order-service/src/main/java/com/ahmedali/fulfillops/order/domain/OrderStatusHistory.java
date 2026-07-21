@@ -29,12 +29,20 @@ public class OrderStatusHistory {
     // JPA
   }
 
-  public OrderStatusHistory(UUID orderId, OrderStatus status, String reasonCode) {
+  /**
+   * occurredAt is caller-supplied (not Instant.now() here) so it can be the exact same instant the
+   * caller also hands to OperationsProjectionUpdater — order_status_history and
+   * order_stage_duration/order_operations_projection then agree on exactly when a transition
+   * happened, which is what makes OperationsProjectionRebuildService's replay of this table exact
+   * rather than approximate.
+   */
+  public OrderStatusHistory(
+      UUID orderId, OrderStatus status, String reasonCode, Instant occurredAt) {
     this.orderStatusHistoryId = UUID.randomUUID();
     this.orderId = orderId;
     this.status = status;
     this.reasonCode = reasonCode;
-    this.occurredAt = Instant.now();
+    this.occurredAt = occurredAt;
   }
 
   public OrderStatus getStatus() {

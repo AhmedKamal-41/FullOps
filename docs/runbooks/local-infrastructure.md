@@ -46,3 +46,5 @@ Testcontainers needs a working Docker daemon, independent of whether `make infra
 ## Fictional credentials
 
 Every credential referenced by `.env.example`, `docker-compose.yml`, and `infra/keycloak/realm-export.json` — database passwords, the Keycloak bootstrap admin, the three demo users (`customer.demo`, `operator.demo`, `admin.demo`), and the `fulfillops-cli` client secret — is fictional, committed intentionally, and valid only against this local stack. None of it is a real secret, and none of it should be reused anywhere else.
+
+Demo user passwords, for signing into the ops console or `scripts/smoke-*.sh`: `admin.demo` / `AdminDemo!123`, `customer.demo` / `CustomerDemo!123`, `operator.demo` / `OperatorDemo!123`.

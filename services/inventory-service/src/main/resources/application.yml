@@ -34,6 +34,8 @@ app:
   messaging:
     topic: fulfillops.inventory.events
     order-events-topic: fulfillops.order.events
+    payment-events-topic: fulfillops.payment.events
+    fulfillment-events-topic: fulfillops.fulfillment.events
   inventory:
     reservation:
       # Bounded in-process retry (with jittered backoff, see RetryBackoff) for an

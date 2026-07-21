@@ -37,6 +37,7 @@ public class AuthorizationTransaction {
       UUID customerId,
       BigDecimal amount,
       String currencyCode,
+      int precedingTechnicalFailureCount,
       UUID correlationId,
       UUID causationId) {
     UUID paymentId = UUID.randomUUID();
@@ -50,7 +51,8 @@ public class AuthorizationTransaction {
         orderId,
         correlationId,
         causationId,
-        new AuthorizedPayload(paymentId, MoneyPayload.of(currencyCode, amount)));
+        new AuthorizedPayload(
+            paymentId, MoneyPayload.of(currencyCode, amount), precedingTechnicalFailureCount));
     return payment;
   }
 
@@ -62,6 +64,7 @@ public class AuthorizationTransaction {
       String currencyCode,
       String reasonCode,
       String reasonDetail,
+      int precedingTechnicalFailureCount,
       UUID correlationId,
       UUID causationId) {
     UUID paymentId = UUID.randomUUID();
@@ -83,11 +86,20 @@ public class AuthorizationTransaction {
         orderId,
         correlationId,
         causationId,
-        new DeclinedPayload(MoneyPayload.of(currencyCode, amount), reasonCode, reasonDetail));
+        new DeclinedPayload(
+            MoneyPayload.of(currencyCode, amount),
+            reasonCode,
+            reasonDetail,
+            precedingTechnicalFailureCount));
     return payment;
   }
 
-  private record AuthorizedPayload(UUID paymentId, MoneyPayload amount) {}
+  private record AuthorizedPayload(
+      UUID paymentId, MoneyPayload amount, int precedingTechnicalFailureCount) {}
 
-  private record DeclinedPayload(MoneyPayload amount, String reasonCode, String reasonDetail) {}
+  private record DeclinedPayload(
+      MoneyPayload amount,
+      String reasonCode,
+      String reasonDetail,
+      int precedingTechnicalFailureCount) {}
 }

@@ -48,11 +48,69 @@ class OrderStatusTransitionsTest {
   }
 
   @Test
-  void cancellationIsOnlyAllowedBeforeDispatch() {
-    assertThat(OrderStatusTransitions.isAllowed(OrderStatus.PACKED, OrderStatus.CANCELLED))
+  void cancellationBeforeDispatchGoesThroughCancellationPending() {
+    assertThat(
+            OrderStatusTransitions.isAllowed(OrderStatus.PACKED, OrderStatus.CANCELLATION_PENDING))
         .isTrue();
+    assertThat(
+            OrderStatusTransitions.isAllowed(
+                OrderStatus.CANCELLATION_PENDING, OrderStatus.CANCELLED))
+        .isTrue();
+    assertThat(OrderStatusTransitions.isAllowed(OrderStatus.PACKED, OrderStatus.CANCELLED))
+        .isFalse();
+  }
+
+  @Test
+  void cancellationIsNeverDirectlyReachableAtOrAfterDispatch() {
     assertThat(OrderStatusTransitions.isAllowed(OrderStatus.DISPATCHED, OrderStatus.CANCELLED))
         .isFalse();
+    assertThat(
+            OrderStatusTransitions.isAllowed(
+                OrderStatus.DISPATCHED, OrderStatus.CANCELLATION_PENDING))
+        .isFalse();
+  }
+
+  @Test
+  void cancellationRequestedAtOrAfterDispatchEscalatesStraightToRequiresReview() {
+    assertThat(
+            OrderStatusTransitions.isAllowed(OrderStatus.DISPATCHED, OrderStatus.REQUIRES_REVIEW))
+        .isTrue();
+  }
+
+  @Test
+  void onlyPendingCanCancelDirectlyWithNoCompensationToWaitFor() {
+    assertThat(OrderStatusTransitions.isAllowed(OrderStatus.PENDING, OrderStatus.CANCELLED))
+        .isTrue();
+    assertThat(
+            OrderStatusTransitions.isAllowed(OrderStatus.INVENTORY_RESERVED, OrderStatus.CANCELLED))
+        .isFalse();
+  }
+
+  @Test
+  void reconciliationCanEscalateAnyStuckHappyPathStatusToRequiresReview() {
+    // Every status ReconciliationService.HAPPY_PATH_NONTERMINAL_STATUSES can find an order stuck
+    // in must actually be able to reach REQUIRES_REVIEW, or the escalation silently no-ops.
+    assertThat(OrderStatusTransitions.isAllowed(OrderStatus.PENDING, OrderStatus.REQUIRES_REVIEW))
+        .isTrue();
+    assertThat(
+            OrderStatusTransitions.isAllowed(
+                OrderStatus.INVENTORY_RESERVED, OrderStatus.REQUIRES_REVIEW))
+        .isTrue();
+    assertThat(
+            OrderStatusTransitions.isAllowed(
+                OrderStatus.PAYMENT_AUTHORIZED, OrderStatus.REQUIRES_REVIEW))
+        .isTrue();
+    assertThat(
+            OrderStatusTransitions.isAllowed(
+                OrderStatus.FULFILLMENT_ASSIGNED, OrderStatus.REQUIRES_REVIEW))
+        .isTrue();
+    assertThat(OrderStatusTransitions.isAllowed(OrderStatus.PICKING, OrderStatus.REQUIRES_REVIEW))
+        .isTrue();
+    assertThat(OrderStatusTransitions.isAllowed(OrderStatus.PACKED, OrderStatus.REQUIRES_REVIEW))
+        .isTrue();
+    assertThat(
+            OrderStatusTransitions.isAllowed(OrderStatus.DISPATCHED, OrderStatus.REQUIRES_REVIEW))
+        .isTrue();
   }
 
   @Test

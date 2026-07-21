@@ -11,7 +11,7 @@ import com.ahmedali.fulfillops.inventory.domain.ProductRepository;
 import com.ahmedali.fulfillops.inventory.domain.StockLevel;
 import com.ahmedali.fulfillops.inventory.domain.StockLevelRepository;
 import com.ahmedali.fulfillops.inventory.messaging.EventEnvelope;
-import com.ahmedali.fulfillops.inventory.messaging.OrderPlacedListener;
+import com.ahmedali.fulfillops.inventory.messaging.OrderEventsListener;
 import com.ahmedali.fulfillops.inventory.messaging.OutboxEvent;
 import com.ahmedali.fulfillops.inventory.messaging.OutboxEventRepository;
 import com.networknt.schema.Error;
@@ -20,6 +20,7 @@ import com.networknt.schema.SchemaLocation;
 import com.networknt.schema.SchemaRegistry;
 import com.networknt.schema.SpecificationVersion;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -38,7 +39,7 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * Drives OrderPlacedListener.onMessage(...) directly (same technique the Phase 3 scaffold test
+ * Drives OrderEventsListener.onMessage(...) directly (same technique the Phase 3 scaffold test
  * used) against a full application context backed by Testcontainers Postgres/Kafka/Redis, and
  * asserts directly against the database what the reservation transaction actually committed. Covers
  * the "full reservation", "insufficient one item", "atomic multi-item rejection", and "duplicate
@@ -51,7 +52,7 @@ class ReservationIT {
 
   private static final Path EVENTS_DIR = Path.of("../../contracts/events");
 
-  @Autowired private OrderPlacedListener orderPlacedListener;
+  @Autowired private OrderEventsListener orderEventsListener;
   @Autowired private ProductRepository productRepository;
   @Autowired private StockLevelRepository stockLevelRepository;
   @Autowired private InventoryAdjustmentRepository adjustmentRepository;
@@ -69,7 +70,7 @@ class ReservationIT {
     UUID orderId = UUID.randomUUID();
     UUID correlationId = UUID.randomUUID();
 
-    orderPlacedListener.onMessage(
+    orderEventsListener.onMessage(
         orderPlacedEnvelopeJson(
             UUID.randomUUID(),
             orderId,
@@ -104,7 +105,7 @@ class ReservationIT {
     seedStock(sku, 1);
     UUID orderId = UUID.randomUUID();
 
-    orderPlacedListener.onMessage(
+    orderEventsListener.onMessage(
         orderPlacedEnvelopeJson(
             UUID.randomUUID(), orderId, UUID.randomUUID(), List.of(new TestItem(sku, 5))));
 
@@ -129,7 +130,7 @@ class ReservationIT {
     seedStock(shortSku, 1);
     UUID orderId = UUID.randomUUID();
 
-    orderPlacedListener.onMessage(
+    orderEventsListener.onMessage(
         orderPlacedEnvelopeJson(
             UUID.randomUUID(),
             orderId,
@@ -154,8 +155,8 @@ class ReservationIT {
     String envelopeJson =
         orderPlacedEnvelopeJson(eventId, orderId, UUID.randomUUID(), List.of(new TestItem(sku, 2)));
 
-    orderPlacedListener.onMessage(envelopeJson);
-    orderPlacedListener.onMessage(envelopeJson);
+    orderEventsListener.onMessage(envelopeJson);
+    orderEventsListener.onMessage(envelopeJson);
 
     assertThat(stockLevelRepository.findBySku(sku).orElseThrow().getAvailableQuantity())
         .isEqualTo(8);
@@ -170,7 +171,7 @@ class ReservationIT {
     UUID orderId = UUID.randomUUID();
     UUID correlationId = UUID.randomUUID();
 
-    orderPlacedListener.onMessage(
+    orderEventsListener.onMessage(
         orderPlacedEnvelopeJson(
             UUID.randomUUID(), orderId, correlationId, List.of(new TestItem(sku, 4))));
 
@@ -186,6 +187,39 @@ class ReservationIT {
     assertThat(adjustment.getActor()).isEqualTo("system");
     assertThat(adjustment.getCorrelationId()).isEqualTo(correlationId);
     assertThat(adjustment.getCreatedAt()).isNotNull();
+  }
+
+  @Test
+  void reservingBelowTheLowStockThresholdEmitsASchemaValidInventoryLowStockEvent()
+      throws Exception {
+    // app.inventory.low-stock.default-threshold is 10 in application-test.yml — 12 available,
+    // reserve 3, lands at 9, which crosses below 10.
+    String sku = uniqueSku("LOWSTOCK");
+    seedStock(sku, 12);
+    UUID orderId = UUID.randomUUID();
+
+    orderEventsListener.onMessage(
+        orderPlacedEnvelopeJson(
+            UUID.randomUUID(), orderId, UUID.randomUUID(), List.of(new TestItem(sku, 3))));
+
+    UUID skuAggregateId = UUID.nameUUIDFromBytes(("sku:" + sku).getBytes(StandardCharsets.UTF_8));
+    assertThat(
+            countRows(
+                "outbox_event",
+                "aggregate_id = ? AND event_type = 'InventoryLowStock'",
+                skuAggregateId))
+        .isEqualTo(1);
+
+    OutboxEvent lowStockEvent =
+        outboxEventRepository.findAll().stream()
+            .filter(
+                row ->
+                    row.getAggregateId().equals(skuAggregateId)
+                        && row.getEventType().equals("InventoryLowStock"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(schemaErrorsFor(lowStockEvent, "InventoryLowStock")).isEmpty();
+    assertThat(lowStockEvent.getPayload()).contains("\"belowThreshold\": true");
   }
 
   @Test
@@ -221,7 +255,7 @@ class ReservationIT {
     ((ObjectNode) itemsNode.get(0)).put("sku", skuA);
     ((ObjectNode) itemsNode.get(1)).put("sku", skuB);
 
-    orderPlacedListener.onMessage(objectMapper.writeValueAsString(envelopeNode));
+    orderEventsListener.onMessage(objectMapper.writeValueAsString(envelopeNode));
 
     assertThat(countRows("inventory_reservation", "order_id = ? AND status = 'RESERVED'", orderId))
         .isEqualTo(1);

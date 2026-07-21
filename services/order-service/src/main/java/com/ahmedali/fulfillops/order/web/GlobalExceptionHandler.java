@@ -1,6 +1,11 @@
 package com.ahmedali.fulfillops.order.web;
 
+import com.ahmedali.fulfillops.order.service.DeadLetterEventAlreadyReplayedException;
+import com.ahmedali.fulfillops.order.service.DeadLetterEventNotFoundException;
 import com.ahmedali.fulfillops.order.service.IdempotencyKeyConflictException;
+import com.ahmedali.fulfillops.order.service.IncidentAlreadyResolvedException;
+import com.ahmedali.fulfillops.order.service.IncidentNotFoundException;
+import com.ahmedali.fulfillops.order.service.InvalidDateRangeException;
 import com.ahmedali.fulfillops.order.service.InvalidOrderRequestException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -36,6 +41,32 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
   @ExceptionHandler(OrderNotFoundException.class)
   public ProblemDetail handleOrderNotFound(OrderNotFoundException e) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+  }
+
+  @ExceptionHandler(DeadLetterEventNotFoundException.class)
+  public ProblemDetail handleDeadLetterEventNotFound(DeadLetterEventNotFoundException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+  }
+
+  @ExceptionHandler(DeadLetterEventAlreadyReplayedException.class)
+  public ProblemDetail handleDeadLetterEventAlreadyReplayed(
+      DeadLetterEventAlreadyReplayedException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+  }
+
+  @ExceptionHandler(InvalidDateRangeException.class)
+  public ProblemDetail handleInvalidDateRange(InvalidDateRangeException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+  }
+
+  @ExceptionHandler(IncidentNotFoundException.class)
+  public ProblemDetail handleIncidentNotFound(IncidentNotFoundException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+  }
+
+  @ExceptionHandler(IncidentAlreadyResolvedException.class)
+  public ProblemDetail handleIncidentAlreadyResolved(IncidentAlreadyResolvedException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
   }
 
   // Constraint violations on simple parameters (e.g. a blank Idempotency-Key header)

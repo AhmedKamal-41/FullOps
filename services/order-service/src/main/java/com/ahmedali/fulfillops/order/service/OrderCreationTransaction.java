@@ -34,16 +34,19 @@ public class OrderCreationTransaction {
   private final OrderStatusHistoryRepository orderStatusHistoryRepository;
   private final IdempotencyRequestRepository idempotencyRequestRepository;
   private final OutboxEventWriter outboxEventWriter;
+  private final OperationsProjectionUpdater projectionUpdater;
 
   public OrderCreationTransaction(
       OrderRepository orderRepository,
       OrderStatusHistoryRepository orderStatusHistoryRepository,
       IdempotencyRequestRepository idempotencyRequestRepository,
-      OutboxEventWriter outboxEventWriter) {
+      OutboxEventWriter outboxEventWriter,
+      OperationsProjectionUpdater projectionUpdater) {
     this.orderRepository = orderRepository;
     this.orderStatusHistoryRepository = orderStatusHistoryRepository;
     this.idempotencyRequestRepository = idempotencyRequestRepository;
     this.outboxEventWriter = outboxEventWriter;
+    this.projectionUpdater = projectionUpdater;
   }
 
   @Transactional
@@ -56,12 +59,15 @@ public class OrderCreationTransaction {
     UUID orderId = UUID.randomUUID();
 
     Order order = new Order(orderId, customerId, computed.currencyCode(), computed.totalAmount());
+    order.recordCorrelationId(correlationId);
     for (OrderPricing.ComputedItem item : computed.items()) {
       order.addItem(item.sku(), item.quantity(), item.unitPrice(), item.lineTotal());
     }
     orderRepository.save(order);
 
-    orderStatusHistoryRepository.save(new OrderStatusHistory(orderId, OrderStatus.PENDING, null));
+    orderStatusHistoryRepository.save(
+        new OrderStatusHistory(orderId, OrderStatus.PENDING, null, order.getCreatedAt()));
+    projectionUpdater.onOrderPlaced(order);
 
     outboxEventWriter.write(
         EVENT_TYPE,

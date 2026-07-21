@@ -1,0 +1,15 @@
+export const queryKeys = {
+  overview: (from: string, to: string) => ["overview", from, to] as const,
+  timeseries: (from: string, to: string) => ["timeseries", from, to] as const,
+  stageDurations: (from: string, to: string) => ["stage-durations", from, to] as const,
+  backlog: () => ["backlog"] as const,
+  stuckOrders: () => ["stuck-orders"] as const,
+  lowStock: () => ["low-stock"] as const,
+  workQueue: (filters: unknown) => ["work-queue", filters] as const,
+  order: (orderId: string) => ["order", orderId] as const,
+  orderTimeline: (orderId: string) => ["order-timeline", orderId] as const,
+  incidents: (filters: unknown) => ["incidents", filters] as const,
+  fulfillments: (status: string) => ["fulfillments", status] as const,
+  fulfillmentHistory: (fulfillmentId: string) => ["fulfillment-history", fulfillmentId] as const,
+  deadLetters: () => ["dead-letters"] as const,
+};

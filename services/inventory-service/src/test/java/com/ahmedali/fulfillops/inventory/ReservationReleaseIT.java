@@ -13,7 +13,7 @@ import com.ahmedali.fulfillops.inventory.domain.ProductRepository;
 import com.ahmedali.fulfillops.inventory.domain.StockLevel;
 import com.ahmedali.fulfillops.inventory.domain.StockLevelRepository;
 import com.ahmedali.fulfillops.inventory.messaging.EventEnvelope;
-import com.ahmedali.fulfillops.inventory.messaging.OrderPlacedListener;
+import com.ahmedali.fulfillops.inventory.messaging.OrderEventsListener;
 import com.ahmedali.fulfillops.inventory.service.ReleaseOutcome;
 import com.ahmedali.fulfillops.inventory.service.ReleaseReasonCode;
 import com.ahmedali.fulfillops.inventory.service.ReservationNotFoundException;
@@ -41,7 +41,7 @@ import tools.jackson.databind.ObjectMapper;
 @Import({TestcontainersConfiguration.class, TestSecurityConfig.class})
 class ReservationReleaseIT {
 
-  @Autowired private OrderPlacedListener orderPlacedListener;
+  @Autowired private OrderEventsListener orderEventsListener;
   @Autowired private ReservationReleaseService reservationReleaseService;
   @Autowired private ProductRepository productRepository;
   @Autowired private StockLevelRepository stockLevelRepository;
@@ -130,7 +130,7 @@ class ReservationReleaseIT {
   }
 
   private void reserve(UUID orderId, String sku, int quantity) throws Exception {
-    orderPlacedListener.onMessage(
+    orderEventsListener.onMessage(
         orderPlacedEnvelopeJson(UUID.randomUUID(), orderId, sku, quantity));
   }
 

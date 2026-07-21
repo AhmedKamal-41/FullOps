@@ -10,4 +10,5 @@ public record OrderResponse(
     String status,
     List<OrderItemResponse> items,
     MoneyDto totalAmount,
-    Instant createdAt) {}
+    Instant createdAt,
+    UUID correlationId) {}

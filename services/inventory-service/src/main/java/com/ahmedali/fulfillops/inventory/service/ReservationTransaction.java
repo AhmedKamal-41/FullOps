@@ -52,18 +52,21 @@ public class ReservationTransaction {
   private final ReservationItemRepository reservationItemRepository;
   private final InventoryAdjustmentRepository adjustmentRepository;
   private final OutboxEventWriter outboxEventWriter;
+  private final LowStockSignalEvaluator lowStockSignalEvaluator;
 
   public ReservationTransaction(
       StockLevelRepository stockLevelRepository,
       InventoryReservationRepository reservationRepository,
       ReservationItemRepository reservationItemRepository,
       InventoryAdjustmentRepository adjustmentRepository,
-      OutboxEventWriter outboxEventWriter) {
+      OutboxEventWriter outboxEventWriter,
+      LowStockSignalEvaluator lowStockSignalEvaluator) {
     this.stockLevelRepository = stockLevelRepository;
     this.reservationRepository = reservationRepository;
     this.reservationItemRepository = reservationItemRepository;
     this.adjustmentRepository = adjustmentRepository;
     this.outboxEventWriter = outboxEventWriter;
+    this.lowStockSignalEvaluator = lowStockSignalEvaluator;
   }
 
   @Transactional
@@ -119,6 +122,8 @@ public class ReservationTransaction {
               null,
               SYSTEM_ACTOR,
               correlationId));
+      lowStockSignalEvaluator.evaluate(
+          item.sku(), before, stock.getAvailableQuantity(), correlationId, causationId);
     }
 
     outboxEventWriter.write(

@@ -25,6 +25,11 @@
             "reasonDetail": {
               "type": "string",
               "maxLength": 500
+            },
+            "precedingTechnicalFailureCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "How many TIMEOUT/TEMPORARY_ERROR/CIRCUIT_OPEN attempts happened for this order before this decline. A decline is a business rejection recorded on its own first attempt at the current amount, so this is usually 0, but a redelivered InventoryReserved event can retry authorization and hit transient failures before eventually declining. Optional and additive (see contracts/README.md's versioning rule)."
             }
           }
         }

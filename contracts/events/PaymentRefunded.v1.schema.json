@@ -24,7 +24,7 @@
             "amount": { "$ref": "Money.v1.schema.json" },
             "reasonCode": {
               "type": "string",
-              "enum": ["FULFILLMENT_CANCELLED"]
+              "enum": ["FULFILLMENT_CANCELLED", "ORDER_CANCELLED"]
             }
           }
         }

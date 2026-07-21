@@ -24,14 +24,17 @@ public class StockAdjustmentTransaction {
   private final StockLevelRepository stockLevelRepository;
   private final InventoryAdjustmentRepository adjustmentRepository;
   private final IdempotencyRequestRepository idempotencyRequestRepository;
+  private final LowStockSignalEvaluator lowStockSignalEvaluator;
 
   public StockAdjustmentTransaction(
       StockLevelRepository stockLevelRepository,
       InventoryAdjustmentRepository adjustmentRepository,
-      IdempotencyRequestRepository idempotencyRequestRepository) {
+      IdempotencyRequestRepository idempotencyRequestRepository,
+      LowStockSignalEvaluator lowStockSignalEvaluator) {
     this.stockLevelRepository = stockLevelRepository;
     this.adjustmentRepository = adjustmentRepository;
     this.idempotencyRequestRepository = idempotencyRequestRepository;
+    this.lowStockSignalEvaluator = lowStockSignalEvaluator;
   }
 
   @Transactional
@@ -70,6 +73,8 @@ public class StockAdjustmentTransaction {
             actorId,
             correlationId);
     adjustmentRepository.save(adjustment);
+    lowStockSignalEvaluator.evaluate(
+        sku, before, stock.getAvailableQuantity(), correlationId, null);
 
     idempotencyRequestRepository.saveAndFlush(
         new IdempotencyRequest(

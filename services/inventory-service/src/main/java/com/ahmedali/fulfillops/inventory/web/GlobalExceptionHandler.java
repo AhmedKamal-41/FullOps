@@ -1,5 +1,7 @@
 package com.ahmedali.fulfillops.inventory.web;
 
+import com.ahmedali.fulfillops.inventory.service.DeadLetterEventAlreadyReplayedException;
+import com.ahmedali.fulfillops.inventory.service.DeadLetterEventNotFoundException;
 import com.ahmedali.fulfillops.inventory.service.IdempotencyKeyConflictException;
 import com.ahmedali.fulfillops.inventory.service.InvalidAdjustmentException;
 import com.ahmedali.fulfillops.inventory.service.ProductAlreadyExistsException;
@@ -48,6 +50,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
   @ExceptionHandler(StockConcurrencyException.class)
   public ProblemDetail handleStockConcurrency(StockConcurrencyException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+  }
+
+  @ExceptionHandler(DeadLetterEventNotFoundException.class)
+  public ProblemDetail handleDeadLetterEventNotFound(DeadLetterEventNotFoundException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+  }
+
+  @ExceptionHandler(DeadLetterEventAlreadyReplayedException.class)
+  public ProblemDetail handleDeadLetterEventAlreadyReplayed(
+      DeadLetterEventAlreadyReplayedException e) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
   }
 

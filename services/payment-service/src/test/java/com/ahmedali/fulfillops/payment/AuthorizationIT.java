@@ -10,7 +10,7 @@ import com.ahmedali.fulfillops.payment.domain.PaymentAttemptRepository;
 import com.ahmedali.fulfillops.payment.domain.PaymentRepository;
 import com.ahmedali.fulfillops.payment.messaging.EventEnvelope;
 import com.ahmedali.fulfillops.payment.messaging.InventoryReservedListener;
-import com.ahmedali.fulfillops.payment.messaging.OrderPlacedListener;
+import com.ahmedali.fulfillops.payment.messaging.OrderEventsListener;
 import com.ahmedali.fulfillops.payment.messaging.OutboxEvent;
 import com.ahmedali.fulfillops.payment.messaging.OutboxEventRepository;
 import com.ahmedali.fulfillops.payment.service.OrderPaymentContextNotYetAvailableException;
@@ -38,7 +38,7 @@ import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Drives OrderPlacedListener and InventoryReservedListener directly against a full application
+ * Drives OrderEventsListener and InventoryReservedListener directly against a full application
  * context backed by Testcontainers Postgres/Kafka/Redis, asserting directly against the database
  * what the authorization flow actually committed. Covers the approved, declined,
  * duplicate-delivery, and missing-order-context scenarios from the Phase 6 charter. None of these
@@ -55,7 +55,7 @@ class AuthorizationIT {
 
   private static final Path EVENTS_DIR = Path.of("../../contracts/events");
 
-  @Autowired private OrderPlacedListener orderPlacedListener;
+  @Autowired private OrderEventsListener orderEventsListener;
   @Autowired private InventoryReservedListener inventoryReservedListener;
   @Autowired private PaymentRepository paymentRepository;
   @Autowired private PaymentAttemptRepository paymentAttemptRepository;
@@ -159,7 +159,7 @@ class AuthorizationIT {
             orderId,
             "order-service",
             objectMapper.valueToTree(payload));
-    orderPlacedListener.onMessage(objectMapper.writeValueAsString(envelope));
+    orderEventsListener.onMessage(objectMapper.writeValueAsString(envelope));
   }
 
   private void deliverInventoryReserved(UUID orderId, UUID correlationId) {

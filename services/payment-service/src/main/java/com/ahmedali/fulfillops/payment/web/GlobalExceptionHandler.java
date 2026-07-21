@@ -1,5 +1,7 @@
 package com.ahmedali.fulfillops.payment.web;
 
+import com.ahmedali.fulfillops.payment.service.DeadLetterEventAlreadyReplayedException;
+import com.ahmedali.fulfillops.payment.service.DeadLetterEventNotFoundException;
 import com.ahmedali.fulfillops.payment.service.IdempotencyKeyConflictException;
 import com.ahmedali.fulfillops.payment.service.InvalidRefundRequestException;
 import com.ahmedali.fulfillops.payment.service.InvalidRefundStateException;
@@ -42,6 +44,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
   @ExceptionHandler(IdempotencyKeyConflictException.class)
   public ProblemDetail handleIdempotencyKeyConflict(IdempotencyKeyConflictException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+  }
+
+  @ExceptionHandler(DeadLetterEventNotFoundException.class)
+  public ProblemDetail handleDeadLetterEventNotFound(DeadLetterEventNotFoundException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+  }
+
+  @ExceptionHandler(DeadLetterEventAlreadyReplayedException.class)
+  public ProblemDetail handleDeadLetterEventAlreadyReplayed(
+      DeadLetterEventAlreadyReplayedException e) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
   }
 

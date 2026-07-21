@@ -1,6 +1,8 @@
 package com.ahmedali.fulfillops.order.web;
 
+import com.ahmedali.fulfillops.order.service.OrderCancellationService;
 import com.ahmedali.fulfillops.order.service.OrderService;
+import com.ahmedali.fulfillops.order.web.dto.CancellationRequest;
 import com.ahmedali.fulfillops.order.web.dto.CreateOrderRequest;
 import com.ahmedali.fulfillops.order.web.dto.OrderResponse;
 import com.ahmedali.fulfillops.order.web.dto.OrderSummaryResponse;
@@ -38,9 +40,12 @@ public class OrderController {
   private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
 
   private final OrderService orderService;
+  private final OrderCancellationService orderCancellationService;
 
-  public OrderController(OrderService orderService) {
+  public OrderController(
+      OrderService orderService, OrderCancellationService orderCancellationService) {
     this.orderService = orderService;
+    this.orderCancellationService = orderCancellationService;
   }
 
   @Operation(
@@ -103,6 +108,26 @@ public class OrderController {
   public Page<OrderSummaryResponse> listMyOrders(
       @AuthenticationPrincipal Jwt jwt, Pageable pageable) {
     return orderService.listOrders(customerIdOf(jwt), pageable);
+  }
+
+  @Operation(
+      summary = "Request cancellation of a nonterminal order",
+      description =
+          "Requires an Idempotency-Key header. A customer may only cancel their own order; an "
+              + "operator/admin may cancel any order but must supply a reason. What happens next "
+              + "depends on the order's current status — see docs/DOMAIN_MODEL.md.")
+  @PostMapping("/{orderId}/cancellation-requests")
+  public OrderResponse requestCancellation(
+      @PathVariable UUID orderId,
+      @RequestHeader(IDEMPOTENCY_KEY_HEADER) @NotBlank @Size(max = 255) String idempotencyKey,
+      @Valid @RequestBody(required = false) CancellationRequest request,
+      @AuthenticationPrincipal Jwt jwt,
+      Authentication authentication,
+      @RequestAttribute("correlationId") UUID correlationId) {
+    boolean isStaff = hasAnyRole(authentication, "ROLE_OPERATOR", "ROLE_ADMIN");
+    String reasonDetail = request == null ? null : request.reasonDetail();
+    return orderCancellationService.requestCancellation(
+        orderId, jwt.getSubject(), isStaff, idempotencyKey, reasonDetail, correlationId);
   }
 
   private static UUID customerIdOf(Jwt jwt) {

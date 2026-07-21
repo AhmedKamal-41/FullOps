@@ -2,6 +2,8 @@ package com.ahmedali.fulfillops.order.web;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -48,5 +50,20 @@ class WhoAmIAuthorizationTest {
         .andExpect(jsonPath("$.subject").value("customer-demo-subject"))
         .andExpect(jsonPath("$.username").value("customer.demo"))
         .andExpect(jsonPath("$.roles[0]").value("ROLE_CUSTOMER"));
+  }
+
+  // The ops console (Phase 10) is a browser SPA on a different origin — without a real CORS
+  // preflight response, the browser blocks every request before Spring Security even sees it,
+  // no matter how the token/role check would have gone. This drives an actual OPTIONS preflight
+  // through the real filter chain rather than just asserting a bean exists.
+  @Test
+  void respondsToAPreflightRequestFromTheOpsConsoleOrigin() throws Exception {
+    mockMvc
+        .perform(
+            options("/api/v1/whoami")
+                .header("Origin", "http://localhost:5173")
+                .header("Access-Control-Request-Method", "GET"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
   }
 }

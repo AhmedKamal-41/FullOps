@@ -20,12 +20,22 @@
     <properties>
         <springdoc-openapi.version>3.0.3</springdoc-openapi.version>
         <json-schema-validator.version>3.0.6</json-schema-validator.version>
+        <awaitility.version>4.3.0</awaitility.version>
+        <!-- Current stable per Maven Central metadata, checked 2026-07-21. -->
+        <commons-csv.version>1.14.1</commons-csv.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <!-- CSV export for the work-queue endpoint — correct RFC 4180 escaping (quotes,
+                 commas, embedded newlines) is exactly the kind of thing not worth hand-rolling. -->
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>${commons-csv.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -93,6 +103,12 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <version>${awaitility.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

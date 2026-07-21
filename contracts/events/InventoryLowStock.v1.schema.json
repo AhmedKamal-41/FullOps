@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fulfillops.dev/contracts/events/InventoryLowStock.v1.schema.json",
+  "title": "InventoryLowStock.v1",
+  "description": "Inventory Service's available quantity for one SKU crossed its configured low-stock threshold. Edge-triggered: emitted once when availableQuantity drops below the threshold, and once more when it recovers back to or above it — never repeated while already on the same side of the threshold. Not tied to any order, so aggregateId is a name-based UUID derived deterministically from the SKU (UUID.nameUUIDFromBytes) rather than an order ID — the one exception to contracts/README.md's 'aggregateId is always the order ID' convention, called out there explicitly. The actual sku string travels in payload.",
+  "allOf": [
+    { "$ref": "EventEnvelope.v1.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "InventoryLowStock" },
+        "eventVersion": { "const": 1 },
+        "producer": { "const": "inventory-service" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sku", "availableQuantity", "threshold", "belowThreshold"],
+          "properties": {
+            "sku": { "type": "string", "minLength": 1 },
+            "availableQuantity": { "type": "integer", "minimum": 0 },
+            "threshold": { "type": "integer", "minimum": 0 },
+            "belowThreshold": {
+              "type": "boolean",
+              "description": "true when availableQuantity just dropped below threshold, false when it just recovered to or above it."
+            }
+          }
+        }
+      }
+    }
+  ]
+}

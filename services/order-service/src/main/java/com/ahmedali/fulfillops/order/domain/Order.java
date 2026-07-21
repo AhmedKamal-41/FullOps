@@ -34,6 +34,16 @@ public class Order {
   private String currencyCode;
   private BigDecimal totalAmount;
 
+  // These three only ever arrive in a Kafka event payload — see V4__operations.sql for why
+  // they're durably stored on orders itself rather than only in order_operations_projection.
+  private String inventoryRejectionReasonCode;
+  private String paymentDeclineReasonCode;
+  private int paymentTechnicalFailureCount;
+
+  // Nullable — see V5__order_correlation_id.sql for why an order placed before that migration
+  // genuinely has none recorded, rather than a backfilled fake value.
+  private UUID correlationId;
+
   @Version private int version;
 
   private Instant createdAt;
@@ -64,6 +74,28 @@ public class Order {
     items.add(new OrderItem(UUID.randomUUID(), this, sku, quantity, unitPrice, lineTotal));
   }
 
+  /**
+   * Callers are responsible for checking OrderStatusTransitions.isAllowed(status, newStatus) first
+   * — this method only applies the change, it doesn't validate it.
+   */
+  public void updateStatus(OrderStatus newStatus) {
+    this.status = newStatus;
+    this.updatedAt = Instant.now();
+  }
+
+  public void recordInventoryRejection(String reasonCode) {
+    this.inventoryRejectionReasonCode = reasonCode;
+  }
+
+  public void recordPaymentOutcome(String declineReasonCode, int precedingTechnicalFailureCount) {
+    this.paymentDeclineReasonCode = declineReasonCode;
+    this.paymentTechnicalFailureCount = precedingTechnicalFailureCount;
+  }
+
+  public void recordCorrelationId(UUID correlationId) {
+    this.correlationId = correlationId;
+  }
+
   public UUID getOrderId() {
     return orderId;
   }
@@ -92,7 +124,27 @@ public class Order {
     return createdAt;
   }
 
+  public Instant getUpdatedAt() {
+    return updatedAt;
+  }
+
   public List<OrderItem> getItems() {
     return items;
+  }
+
+  public String getInventoryRejectionReasonCode() {
+    return inventoryRejectionReasonCode;
+  }
+
+  public String getPaymentDeclineReasonCode() {
+    return paymentDeclineReasonCode;
+  }
+
+  public int getPaymentTechnicalFailureCount() {
+    return paymentTechnicalFailureCount;
+  }
+
+  public UUID getCorrelationId() {
+    return correlationId;
   }
 }

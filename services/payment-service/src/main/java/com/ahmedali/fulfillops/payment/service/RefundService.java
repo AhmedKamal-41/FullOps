@@ -63,6 +63,33 @@ public class RefundService {
     }
   }
 
+  /**
+   * The event-driven counterpart to refund(...): no Idempotency-Key dance, since Kafka's own inbox
+   * dedup already makes redelivery of the same event safe, and refunds.payment_id being UNIQUE
+   * makes a second, differently-triggered refund attempt for the same payment safe too — attempt()
+   * re-checks isAuthorized() itself and throws InvalidRefundStateException if some other trigger
+   * already resolved it first, which is exactly the no-op this method wants in that case. A missing
+   * or already-non-authorized payment is also a no-op: cancellation may be requested before payment
+   * was ever authorized, or another compensation path may have already refunded it.
+   */
+  public void refundForCompensation(UUID orderId, RefundReasonCode reasonCode, UUID correlationId) {
+    Optional<Payment> payment = paymentRepository.findByOrderId(orderId);
+    if (payment.isEmpty() || !payment.get().isAuthorized()) {
+      return;
+    }
+
+    UUID paymentId = payment.get().getPaymentId();
+    String idempotencyKey = "auto-" + orderId;
+    String fingerprint = fingerprint("system", paymentId, reasonCode);
+    try {
+      refundTransaction.attempt(
+          paymentId, "system", idempotencyKey, reasonCode.name(), correlationId, fingerprint);
+    } catch (InvalidRefundStateException alreadyResolved) {
+      // A concurrent trigger (a direct operator cancel, a different compensation path) already
+      // refunded or otherwise resolved this payment first — nothing left to do.
+    }
+  }
+
   private Refund resolveAfterLostRace(
       IdempotencyRequestId idempotencyRequestId,
       String idempotencyKey,

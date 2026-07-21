@@ -178,7 +178,7 @@ class ResilienceIT {
     UUID eventId = UUID.randomUUID();
     // Keyed by eventId, not orderId (the real production key — see ADR 0009), purely so this
     // test can find its own message on the retry/DLT topics by a key nothing else collides
-    // with; same shortcut InboxEventListenerIT and OrderPlacedListenerRetryIT already use.
+    // with; same shortcut InboxEventListenerIT and OrderEventsListenerRetryIT already use.
     kafkaTemplate.send(
         inventoryEventsTopic,
         eventId.toString(),

@@ -1,0 +1,14 @@
+{
+  "eventId": "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
+  "eventType": "OrderCancellationRequested",
+  "eventVersion": 1,
+  "occurredAt": "2026-07-20T10:15:00.000Z",
+  "correlationId": "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+  "causationId": null,
+  "aggregateId": "9f8e7d6c-5b4a-4321-8765-1a2b3c4d5e6f",
+  "producer": "order-service",
+  "payload": {
+    "reasonCode": "CUSTOMER_REQUESTED",
+    "reasonDetail": "customer changed their mind"
+  }
+}

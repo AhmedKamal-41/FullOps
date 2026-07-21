@@ -20,6 +20,7 @@
     <properties>
         <resilience4j.version>2.3.0</resilience4j.version>
         <json-schema-validator.version>3.0.6</json-schema-validator.version>
+        <awaitility.version>4.3.0</awaitility.version>
     </properties>
 
     <dependencies>
@@ -105,6 +106,12 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <version>${awaitility.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

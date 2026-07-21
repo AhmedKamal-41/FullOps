@@ -599,7 +599,7 @@
                     "id": "7ff39257-1316-4782-9e0c-1439f5bb7f25",
                     "type": "password",
                     "createdDate": 1784421199910,
-                    "secretData": "{\"value\":\"9qNEulTQ25I5WUP0X+T3HwL7MSmWvjbT+Pnpn7kKhpE=\",\"salt\":\"hTd2WCydaCfNwHjmoHMr4g==\",\"additionalParameters\":{}}",
+                    "secretData": "{\"value\":\"/aixTv0fKFlfcqu3NjEwKT0/sHRTHyWnDEeKrFm3ixI=\",\"salt\":\"9u9r4c5K4oou2+TrgK7PzA==\",\"additionalParameters\":{}}",
                     "credentialData": "{\"hashIterations\":5,\"algorithm\":\"argon2\",\"additionalParameters\":{\"hashLength\":[\"32\"],\"memory\":[\"7168\"],\"type\":[\"id\"],\"version\":[\"1.3\"],\"parallelism\":[\"1\"]}}"
                 }
             ],

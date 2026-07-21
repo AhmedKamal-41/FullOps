@@ -21,7 +21,12 @@
               "format": "uuid",
               "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
             },
-            "amount": { "$ref": "Money.v1.schema.json" }
+            "amount": { "$ref": "Money.v1.schema.json" },
+            "precedingTechnicalFailureCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "How many TIMEOUT/TEMPORARY_ERROR/CIRCUIT_OPEN attempts happened for this order before this authorization succeeded. Optional and additive (see contracts/README.md's versioning rule) — older producers/consumers that don't know this field still validate."
+            }
           }
         }
       }

@@ -6,7 +6,8 @@ COMPOSE = docker compose --env-file .env -f infra/compose/docker-compose.yml
 
 .PHONY: verify format format-check test build docker-build clean \
         run-order run-inventory run-payment run-fulfillment \
-        infra-up infra-down infra-status logs smoke smoke-inventory smoke-payment
+        infra-up infra-down infra-status logs smoke smoke-inventory smoke-payment smoke-fulfillment \
+        smoke-cancellation smoke-operations
 
 verify: ## Full build: format check, compile, unit tests, coverage report.
 	./mvnw -B clean verify
@@ -68,3 +69,12 @@ smoke-inventory: ## Create stock, place a real order, and observe the resulting 
 
 smoke-payment: ## Place one normal-priced and one seeded-decline-priced order, and observe both PaymentAuthorized/PaymentDeclined events on Kafka.
 	./scripts/smoke-payment-authorization.sh
+
+smoke-fulfillment: ## Place a normal-priced order and follow it to a real FulfillmentAssigned.v1 event, then confirm it via the operator API.
+	./scripts/smoke-fulfillment-assignment.sh
+
+smoke-cancellation: ## Place an order, request cancellation as the customer, and follow the compensation saga to CANCELLED.
+	./scripts/smoke-cancellation.sh
+
+smoke-operations: ## Exercise the ops API end to end: KPI overview, work queue, backlog, timeline, and a projection rebuild.
+	./scripts/smoke-operations.sh

@@ -10,6 +10,7 @@
   "payload": {
     "amount": { "currencyCode": "USD", "amount": "64.48" },
     "reasonCode": "SIMULATED_INSUFFICIENT_FUNDS",
-    "reasonDetail": "Simulator rule: amounts ending in .48 always decline."
+    "reasonDetail": "Simulator rule: amounts ending in .48 always decline.",
+    "precedingTechnicalFailureCount": 0
   }
 }

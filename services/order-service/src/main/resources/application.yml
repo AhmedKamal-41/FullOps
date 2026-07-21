@@ -11,6 +11,11 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       auto-offset-reset: earliest
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+        default-page-size: 20
 
 server:
   port: 8081
@@ -18,6 +23,32 @@ server:
 app:
   messaging:
     topic: fulfillops.order.events
+    inventory-events-topic: fulfillops.inventory.events
+    payment-events-topic: fulfillops.payment.events
+    fulfillment-events-topic: fulfillops.fulfillment.events
+  reconciliation:
+    interval-ms: 60000
+    stuck-threshold: PT30M
+    cancellation-stuck-threshold: PT10M
+  ops:
+    sla:
+      # Demonstration defaults, not measured targets — an operator would tune these per real
+      # environment. "Stuck" reuses app.reconciliation.stuck-threshold/cancellation-stuck-threshold
+      # above rather than defining a second, parallel notion of stuck.
+      stage-thresholds:
+        PENDING: PT15M
+        INVENTORY_RESERVED: PT30M
+        PAYMENT_AUTHORIZED: PT30M
+        FULFILLMENT_ASSIGNED: PT1H
+        PICKING: PT4H
+        PACKED: PT4H
+        DISPATCHED: PT48H
+      age-buckets: PT1H,PT4H,PT24H
+    cache:
+      ttl-seconds: 30
+  cors:
+    # The ops console's dev server (Phase 10) — not a secret, override per environment if needed.
+    allowed-origin: http://localhost:5173
 
 management:
   endpoints:

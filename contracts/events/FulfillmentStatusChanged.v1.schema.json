@@ -31,8 +31,8 @@
             },
             "reasonCode": {
               "type": "string",
-              "enum": ["OPERATOR_CANCELLED"],
-              "description": "Present only when newStatus is CANCELLED."
+              "enum": ["OPERATOR_CANCELLED", "ORDER_CANCELLATION_REQUESTED"],
+              "description": "Present only when newStatus is CANCELLED. OPERATOR_CANCELLED is a direct operator action on this fulfillment; ORDER_CANCELLATION_REQUESTED is this fulfillment reacting to Order Service's OrderCancellationRequested.v1."
             },
             "reasonDetail": {
               "type": "string",

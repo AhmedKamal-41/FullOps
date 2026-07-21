@@ -1,0 +1,16 @@
+{
+  "eventId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+  "eventType": "InventoryLowStock",
+  "eventVersion": 1,
+  "occurredAt": "2026-07-20T09:12:31.000Z",
+  "correlationId": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+  "causationId": null,
+  "aggregateId": "9bf3a4c2-7d71-333a-8a16-1fd6af5721f7",
+  "producer": "inventory-service",
+  "payload": {
+    "sku": "WIDGET-BLUE-M",
+    "availableQuantity": 3,
+    "threshold": 5,
+    "belowThreshold": true
+  }
+}

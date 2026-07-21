@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.ahmedali.fulfillops.order.config.SecurityConfig;
 import com.ahmedali.fulfillops.order.config.TestSecurityConfig;
+import com.ahmedali.fulfillops.order.service.OrderCancellationService;
 import com.ahmedali.fulfillops.order.service.OrderService;
 import com.ahmedali.fulfillops.order.web.dto.MoneyDto;
 import com.ahmedali.fulfillops.order.web.dto.OrderResponse;
@@ -43,6 +44,7 @@ class OrderControllerAuthorizationTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private OrderService orderService;
+  @MockitoBean private OrderCancellationService orderCancellationService;
 
   private static final String VALID_ORDER_BODY =
       """
@@ -156,6 +158,64 @@ class OrderControllerAuthorizationTest {
         .andExpect(status().isForbidden());
   }
 
+  @Test
+  void customerCanRequestCancellationOfTheirOwnOrder() throws Exception {
+    UUID orderId = UUID.randomUUID();
+    when(orderCancellationService.requestCancellation(
+            eq(orderId), any(), eq(false), any(), any(), any()))
+        .thenReturn(sampleOrderResponse());
+
+    mockMvc
+        .perform(
+            post("/api/v1/orders/{orderId}/cancellation-requests", orderId)
+                .with(jwtWithRole("CUSTOMER"))
+                .header("Idempotency-Key", "cancel-1")
+                .contentType("application/json")
+                .content("{}"))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  void operatorCanRequestCancellationOfAnyOrderWithAReason() throws Exception {
+    UUID orderId = UUID.randomUUID();
+    when(orderCancellationService.requestCancellation(
+            eq(orderId), any(), eq(true), any(), any(), any()))
+        .thenReturn(sampleOrderResponse());
+
+    mockMvc
+        .perform(
+            post("/api/v1/orders/{orderId}/cancellation-requests", orderId)
+                .with(jwtWithRole("OPERATOR"))
+                .header("Idempotency-Key", "cancel-2")
+                .contentType("application/json")
+                .content("{\"reasonDetail\": \"customer called support\"}"))
+        .andExpect(status().isOk());
+    verify(orderCancellationService)
+        .requestCancellation(eq(orderId), any(), eq(true), any(), any(), any());
+  }
+
+  @Test
+  void requestingCancellationWithoutAnIdempotencyKeyIsRejected() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/orders/{orderId}/cancellation-requests", UUID.randomUUID())
+                .with(jwtWithRole("CUSTOMER"))
+                .contentType("application/json")
+                .content("{}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void unauthenticatedCannotRequestCancellation() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/orders/{orderId}/cancellation-requests", UUID.randomUUID())
+                .header("Idempotency-Key", "cancel-3")
+                .contentType("application/json")
+                .content("{}"))
+        .andExpect(status().isUnauthorized());
+  }
+
   private static JwtRequestPostProcessor jwtWithRole(String role) {
     return jwt()
         .jwt(token -> token.subject(UUID.randomUUID().toString()))
@@ -169,6 +229,7 @@ class OrderControllerAuthorizationTest {
         "PENDING",
         List.of(),
         new MoneyDto("USD", "39.98"),
-        Instant.now());
+        Instant.now(),
+        UUID.randomUUID());
   }
 }

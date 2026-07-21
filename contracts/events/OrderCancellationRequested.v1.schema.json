@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fulfillops.dev/contracts/events/OrderCancellationRequested.v1.schema.json",
+  "title": "OrderCancellationRequested.v1",
+  "description": "A customer or operator asked Order Service to cancel a nonterminal order that has not yet been dispatched. Fulfillment, Payment, and Inventory Services each react by compensating whatever they individually still hold for this order (a no-op if they hold nothing), then report back on their own topics so Order Service can finalize the order once every required compensation is confirmed.",
+  "allOf": [
+    { "$ref": "EventEnvelope.v1.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "OrderCancellationRequested" },
+        "eventVersion": { "const": 1 },
+        "producer": { "const": "order-service" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reasonCode"],
+          "properties": {
+            "reasonCode": {
+              "type": "string",
+              "enum": ["CUSTOMER_REQUESTED", "OPERATOR_REQUESTED", "RECONCILIATION_RETRY"],
+              "description": "RECONCILIATION_RETRY is a safe, idempotent re-publish of an already-tracked cancellation that reconciliation found stuck — every consumer of this event checks its own local state before acting, so a repeat is always a no-op wherever compensation already happened."
+            },
+            "reasonDetail": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        }
+      }
+    }
+  ]
+}

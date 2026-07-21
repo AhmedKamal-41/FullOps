@@ -20,7 +20,8 @@ public class OpenApiConfig {
             new Info()
                 .title("Order Service")
                 .description(
-                    "Order intake, idempotent order placement, and the customer order view.")
+                    "Order intake, idempotent order placement, the customer order view, and the"
+                        + " operations projection/KPI/incident API.")
                 .version("v1"))
         .components(
             new Components()

@@ -78,13 +78,21 @@ class OrderCreationIT {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.status").value("PENDING"))
             .andExpect(jsonPath("$.totalAmount.amount").value("64.48"))
+            .andExpect(jsonPath("$.correlationId").exists())
             .andReturn()
             .getResponse()
             .getContentAsString();
 
     UUID orderId = UUID.fromString(objectMapper.readTree(responseJson).get("orderId").asString());
+    UUID responseCorrelationId =
+        UUID.fromString(objectMapper.readTree(responseJson).get("correlationId").asString());
 
     assertThat(countRows("orders", "order_id = ?", orderId)).isEqualTo(1);
+    assertThat(
+            countRows(
+                "orders", "order_id = ? AND correlation_id = ?", orderId, responseCorrelationId))
+        .as("the correlation ID the response reports must be the exact one persisted on the order")
+        .isEqualTo(1);
     assertThat(countRows("order_items", "order_id = ?", orderId)).isEqualTo(2);
     assertThat(countRows("order_status_history", "order_id = ? AND status = 'PENDING'", orderId))
         .isEqualTo(1);
@@ -193,10 +201,10 @@ class OrderCreationIT {
             new CreateOrderItemRequest("WIDGET-RED-L", 1, new MoneyDto("USD", "24.50"))));
   }
 
-  private int countRows(String table, String where, Object param) {
+  private int countRows(String table, String where, Object... params) {
     Integer count =
         jdbcTemplate.queryForObject(
-            "SELECT count(*) FROM " + table + " WHERE " + where, Integer.class, param);
+            "SELECT count(*) FROM " + table + " WHERE " + where, Integer.class, params);
     return count == null ? 0 : count;
   }
 
