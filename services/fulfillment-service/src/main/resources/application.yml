@@ -83,5 +83,5 @@ app:
     sla-duration: PT24H
     warehouse-ids: WH-ATL-1,WH-DFW-2,WH-SEA-3,WH-ORD-4
   cors:
-    # The ops console's dev server (Phase 10) — not a secret, override per environment if needed.
+    # The ops console's dev server — not a secret, override per environment if needed.
     allowed-origin: http://localhost:5173

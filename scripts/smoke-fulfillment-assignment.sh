@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 7 smoke flow: creates and stocks a fictional product, places one real
+# Fulfillment smoke flow: creates and stocks a fictional product, places one real
 # order at a normal price through Order Service, and follows it all the way to
 # a real FulfillmentAssigned.v1 event on fulfillops.fulfillment.events — the
 # full payment-authorization-to-assigned-fulfillment path. Starts all four

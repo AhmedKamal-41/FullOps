@@ -1,21 +1,20 @@
 # Contributing to FulfillOps
 
-Thanks for looking at FulfillOps. It is a portfolio project built in ordered phases (see
-[`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md)), so contributions are mostly about keeping the
-code and its documented claims honest and readable.
+Thanks for looking at FulfillOps. Contributions should keep the code, tests, and documented
+claims correct, focused, and readable.
 
 ## The one rule that shapes everything: plain, readable code
 
-Every coding, editing, refactoring, testing, migration, scripting, and configuration change
-follows the `plain-readable-code` style: clear over clever, functions that earn their existence,
-basic language features first. Read
-[`.claude/skills/plain-readable-code/SKILL.md`](.claude/skills/plain-readable-code/SKILL.md) and
-[`AGENTS.md`](AGENTS.md) before writing. Among correct implementations, choose the one a
-thoughtful junior developer can read in one pass and safely modify.
+Prefer explicit control flow, descriptive names, focused responsibilities, and basic language
+features before advanced alternatives. Extract a function when it is reused, names non-obvious
+logic, or materially improves its caller—not simply to increase the function count. Use established
+libraries for authentication, cryptography, dates, HTTP, retries, parsing, and schema validation.
+Among correct implementations, choose the one a thoughtful junior developer can read in one pass
+and safely modify.
 
 ## Non-negotiable engineering rules
 
-These come from [`CLAUDE.md`](CLAUDE.md) and apply everywhere:
+These project rules apply everywhere:
 
 - No service reads or writes another service's tables. No shared JPA/domain module.
 - Never claim exactly-once processing; correctness comes from idempotent consumers and DB
@@ -52,8 +51,8 @@ The build requires **JDK 21** (enforced by the Maven Enforcer plugin) and Maven 
 
 - Keep commits focused and messages descriptive (`type(scope): summary`, e.g.
   `feat(inventory): ...`, `docs: ...`).
-- A change to product code should keep the docs it affects accurate — especially any claim in
-  `README.md`, `docs/TESTING.md`, or `docs/PHASE_STATUS.md`.
+- A change to product code should keep the docs it affects accurate—especially claims in
+  `README.md` and `docs/TESTING.md`.
 - Run `scripts/audit-repo.sh` before opening a PR; it checks required docs/screenshots exist,
   relative links resolve, no obvious secrets are committed, README commands are real, and the
   metrics evidence is present.

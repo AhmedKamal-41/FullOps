@@ -31,9 +31,8 @@ make verify-all                    # every feasible local check at once
 
 ## Current generated counts
 
-These are the numbers a command in this repository actually produced. They are separated by
-what was executed versus what is present but was not run in the build environment used for
-Phase 13 — see [Honest limitations](#honest-limitations).
+These are the numbers recorded by a command in this repository. Re-run the commands above for
+the current result; test counts can change as the project evolves.
 
 **Unit + web-slice tests — executed (`./mvnw -B test`, 0 failures, 0 errors):**
 
@@ -46,12 +45,9 @@ Phase 13 — see [Honest limitations](#honest-limitations).
 | fulfillment-service | 23 |
 | **Total** | **176** |
 
-**Integration tests — present, not executed here:** 40 `*IT.java` files across the four
-services (Testcontainers PostgreSQL/Kafka/Redis). Run them with `./mvnw -B verify`. Earlier
-phases ran these per service and recorded their pass counts in
-[`docs/PHASE_STATUS.md`](PHASE_STATUS.md) (e.g. Phase 11 recorded 269 tests total across the
-four services). They were **not** re-run for Phase 13 because this environment's Docker layer
-could not run the Testcontainers suite reliably (below).
+**Integration tests:** 40 `*IT.java` files across the four services use Testcontainers with
+PostgreSQL, Kafka, and Redis. Run the complete unit and integration suite with `./mvnw -B verify`.
+Docker must be available for the Testcontainers portion of the build.
 
 ## Coverage
 
@@ -63,15 +59,14 @@ the gate sees both.
 The gate is **`coverage.business.line.minimum` = 0.60** (root `pom.xml`), set as a deliberately
 conservative floor. Unit tests alone cover 16–26% of business lines here (order 0.219,
 inventory 0.262, payment 0.257, fulfillment 0.156 — measured with `./mvnw -B test`); most of
-this codebase's coverage comes from the integration tests, which this environment could not
-run cleanly. So the true unit+integration coverage figure was **not measured for Phase 13**
-and is not claimed — CI's integration job produces it, and the gate is meant to be ratcheted
-up to just under that figure once known.
+this codebase's coverage comes from the integration tests. The combined figure is produced by
+`./mvnw -B verify` and CI rather than inferred from the unit-only measurements above. The gate
+should be ratcheted only from a stable, reproducible combined baseline.
 
 ## Performance (k6) — measured, with limits stated
 
-Three k6 scripts under [`tests/perf/`](../tests/perf/) were run against the real local stack
-in Phase 11; raw summaries are in [`docs/evidence/k6/`](evidence/k6/). Exactly as measured:
+Three k6 scripts under [`tests/perf/`](../tests/perf/) were run against the real local stack;
+raw summaries are in [`docs/evidence/k6/`](evidence/k6/). Exactly as measured:
 
 | Scenario | Iterations | Failed requests | p95 latency | Demo target |
 | --- | --- | --- | --- | --- |
@@ -87,11 +82,8 @@ any latency figure elsewhere.
 
 ## Honest limitations
 
-- The Phase 13 build environment ships only JDK 8/17 (the build enforces JDK 21 — a Temurin 21
-  was fetched to build) and its Docker/Testcontainers layer is unreliable under the memory
-  ceiling above, so the integration suite, coverage measurement, and image builds were **not**
-  re-executed for this phase. What was run (unit + web-slice: 176 tests, 0 failures; contract
-  validation; ArchUnit) is reported as executed; everything else is reported as present-and-run
-  in an earlier phase or as CI's job, never as freshly measured here.
-- No CI run has happened yet — nothing has been pushed — so CI-produced numbers (full coverage,
-  green integration/image/scan jobs) are pending, not claimed.
+- The full verification path requires JDK 21 and a Docker environment capable of running
+  PostgreSQL, Kafka, and Redis Testcontainers. The 176-test unit/web-slice count above does not
+  imply that the integration suite ran in the same command.
+- Recorded test and k6 results are evidence from specific runs, not permanent claims. Use the
+  documented commands and CI history for current results.

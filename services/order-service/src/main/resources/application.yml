@@ -63,7 +63,7 @@ app:
     cache:
       ttl-seconds: 30
   cors:
-    # The ops console's dev server (Phase 10) — not a secret, override per environment if needed.
+    # The ops console's dev server — not a secret, override per environment if needed.
     allowed-origin: http://localhost:5173
 
 management:

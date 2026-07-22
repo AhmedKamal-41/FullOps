@@ -4,8 +4,7 @@
 > race-safe inventory, the payment simulator, the fulfillment workflow, the compensation saga,
 > reconciliation, and the operations projection/KPI/incident API — plus the operations console,
 > full observability (metrics/traces/dashboards/alerts), and CI/CD with Kubernetes and (optional,
-> never-applied) AWS Terraform packaging. See [`PHASE_STATUS.md`](PHASE_STATUS.md) for exactly
-> what was built and how it was verified, and [`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) for
+> never-applied) AWS Terraform packaging. See [`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) for
 > the boundaries.
 
 ## Overview
@@ -79,15 +78,15 @@ Services coordinate through Kafka events rather than a central orchestrator/saga
 
 Kafka delivery is at least once, never exactly once. Every consumer must be safe to run twice on the same event — see [ADR 0004](adr/0004-at-least-once-delivery.md). Every event envelope carries `eventId`, `eventType`, `eventVersion`, `occurredAt`, `correlationId`, `causationId`, `aggregateId`, `producer`, and `payload`, which is enough to deduplicate, trace, and version independently per event type. That envelope is a real, JSON-Schema-validated contract — see [`contracts/events/`](../contracts/events/).
 
-### Topics, keys, and retry (implemented in Phase 3)
+### Topics, keys, and retry
 
 Each service publishes to exactly one topic, `fulfillops.<service>.events`, keyed by the order ID so every event in one order's saga is ordered on the same partition regardless of which service produced it. `eventId`, `eventType`, `eventVersion`, `correlationId`, and `causationId` ride along as Kafka headers as well as in the JSON body. Consumer retry and dead-lettering use Spring Kafka's own `@RetryableTopic` — transient failures get exponential-backoff retries on auto-created retry topics, and business rejections (a custom `NonRetryableEventProcessingException`) skip straight to the dead-letter topic instead of being retried pointlessly. The full reasoning, including why Resilience4j isn't used, is in [ADR 0009](adr/0009-kafka-topology-and-retry.md).
 
-Each service also runs a scheduled outbox relay (poll due `outbox_event` rows with `FOR UPDATE SKIP LOCKED`, publish, mark sent only after the broker acknowledges) and an inbox check (skip processing if `(event_id, consumer_name)` is already recorded, otherwise process and record in the same transaction) — the mechanism ADR 0003 describes, now real code in every service's `messaging` package. Phase 3 proved the mechanism itself with each service self-consuming its own outbox topic; Phase 5 replaced Inventory Service's scaffold with its first real cross-service listener, `OrderPlacedListener`, consuming `fulfillops.order.events` to reserve stock. Phase 6 gave Payment Service two real cross-service listeners: its own `OrderPlacedListener`, consuming `fulfillops.order.events` to build a local order-context projection (order id, customer id, currency, amount only), and `InventoryReservedListener`, consuming `fulfillops.inventory.events` as the actual authorization trigger — deliberately two separate consumers rather than one, since the fact that stock is reserved and the money/customer facts needed to charge for it arrive on two different topics with no ordering guarantee between them; a missing order context is handled as a retryable condition (Kafka redelivery gives the other consumer time to catch up), not a business rejection. Phase 7 gave Fulfillment Service its own real cross-service listener, `PaymentAuthorizedListener`, consuming `fulfillops.payment.events` and reacting only to `PaymentAuthorized.v1` (ignoring `PaymentDeclined.v1`/`PaymentRefunded.v1` on the same topic) to create exactly one `Fulfillment` per paid order.
+Each service also runs a scheduled outbox relay (poll due `outbox_event` rows with `FOR UPDATE SKIP LOCKED`, publish, mark sent only after the broker acknowledges) and an inbox check (skip processing if `(event_id, consumer_name)` is already recorded, otherwise process and record in the same transaction) — the mechanism ADR 0003 describes, implemented in every service's `messaging` package. Inventory Service's `OrderPlacedListener` consumes `fulfillops.order.events` to reserve stock. Payment Service has two cross-service listeners: `OrderPlacedListener` builds a local order-context projection (order id, customer id, currency, amount only), while `InventoryReservedListener` consumes `fulfillops.inventory.events` as the authorization trigger. They are deliberately separate because stock-reservation facts and the order facts needed to charge arrive on different topics with no ordering guarantee; a missing order context is retryable, giving the other consumer time to catch up. Fulfillment Service's `PaymentAuthorizedListener` consumes `fulfillops.payment.events`, reacts only to `PaymentAuthorized.v1`, and creates exactly one `Fulfillment` per paid order.
 
 Payment Service's authorization call to its (simulated) provider is wrapped in a bounded retry and circuit breaker, built directly on Resilience4j's framework-agnostic core libraries (`resilience4j-circuitbreaker`, `resilience4j-retry`, `resilience4j-micrometer`) rather than its Spring Boot starter — no starter with verified Spring Boot 4.1 support existed on Maven Central when this was implemented; see [ADR 0010](adr/0010-payment-simulator-resilience.md). This is a separate resilience concern from the Kafka consumer retry/DLT ADR 0009 covers: Resilience4j governs in-process retries against the provider call itself, while Spring Kafka's `@RetryableTopic` still governs redelivery of the Kafka message that triggered it — a technical failure that exhausts Resilience4j's retry budget (or is rejected by an open circuit) propagates out of `InventoryReservedListener` and lets Kafka-level redelivery try again later, layering the two mechanisms rather than replacing one with the other.
 
-### Compensation, dead-letter replay, and reconciliation (implemented in Phase 8)
+### Compensation, dead-letter replay, and reconciliation
 
 Cancellation is choreographed the same way the happy path is: Order Service emits `OrderCancellationRequested.v1` (or reacts directly to `PaymentDeclined.v1`/`InventoryRejected.v1`, which need no separate command), and Inventory, Payment, and Fulfillment Service each independently consume it and release/refund/cancel whatever they own for that order, if anything — no command travels back from any of them to Order Service, and no service ever queries another's database to find out what to compensate. Order Service tracks which of the three compensations a given order actually needs in one `order_cancellation` row per cancelled order (computed once, from what had already happened at the moment cancellation started, and allowed to grow — never shrink — if a milestone event for that order arrives afterward) and finalizes to `CANCELLED` only once every required one is confirmed, in whatever order they arrive. There is still no central saga database: this table lives in Order Service's own schema alongside everything else it owns, and every service's reaction to the same cancellation event is independently idempotent — replaying it twice, or receiving it out of order relative to a milestone event, is a no-op or a safe merge, never a duplicate compensation.
 
@@ -95,7 +94,7 @@ Every consumer in every service is wired with Spring Kafka's `@RetryableTopic` (
 
 Order Service also runs a reconciliation scheduler (`ReconciliationService`, fired on a fixed interval by `ReconciliationScheduler`) that finds orders stuck beyond a configurable threshold — either in `CANCELLATION_PENDING` past a shorter threshold, or in any nonterminal happy-path status past a longer one — and either safely nudges them (a verbatim re-publish of `OrderCancellationRequested.v1`, safe because every consumer of it checks its own state first) or escalates to `REQUIRES_REVIEW` with a deduplicated operations incident if a nudge was already tried. Exactly one running instance ever acts on a given pass: the scheduler acquires a Postgres session-scoped advisory lock (`pg_advisory_lock`/`pg_advisory_unlock`) on one dedicated JDBC connection held for the whole pass, borrowed directly from the `DataSource` rather than through `JdbcTemplate` — since an advisory lock belongs to whichever database session acquired it, acquiring and releasing it through separate pooled connections (as an ordinary `JdbcTemplate` call outside a transaction would) could leave it stuck held on a connection nothing ever unlocks again.
 
-## Operations projection (implemented in Phase 9)
+## Operations projection
 
 Order Service owns a read-optimized operations projection, built by consuming lifecycle events from every other service (inventory, payment, fulfillment). This keeps the ops console's primary data source to one service instead of aggregating live calls to four, at the cost of Order Service needing to consume events it does not otherwise care about for its own domain logic — see [ADR 0008](adr/0008-ops-projection-ownership.md).
 
@@ -109,13 +108,13 @@ Keycloak provides OIDC identity for local development; each backend service is a
 
 ## Redis
 
-Redis is used only for disposable, rebuildable caches (for example, hot-path read caching). No service treats Redis as a system of record — losing the cache must never lose or corrupt data. Inventory Service (Phase 5) is the first concrete example: `GET /api/v1/inventory/{sku}` is a cache-aside read (`InventoryAvailabilityCache`, evicted after every committed reservation/release/adjustment, with a short TTL as a backstop), while PostgreSQL alone — never the cache — decides whether a reservation succeeds. Every Redis call is wrapped so a Redis outage degrades reads straight to PostgreSQL and only shows up as an `inventory.cache.failures` metric, never a failed request. Order Service's `KpiCache` (Phase 9) follows the identical shape for the operations API's expensive aggregate reads (overview/time-series/stage-duration percentiles), TTL-only (no explicit eviction — these are dashboard reads tolerant of brief staleness, not correctness-critical), failing over to PostgreSQL and an `ops.kpi.cache.failures` metric the same way.
+Redis is used only for disposable, rebuildable caches (for example, hot-path read caching). No service treats Redis as a system of record — losing the cache must never lose or corrupt data. `GET /api/v1/inventory/{sku}` is a cache-aside read (`InventoryAvailabilityCache`, evicted after every committed reservation/release/adjustment, with a short TTL as a backstop), while PostgreSQL alone — never the cache — decides whether a reservation succeeds. Every Redis call is wrapped so a Redis outage degrades reads straight to PostgreSQL and only shows up as an `inventory.cache.failures` metric, never a failed request. Order Service's `KpiCache` follows the identical shape for the operations API's expensive aggregate reads (overview/time-series/stage-duration percentiles), TTL-only (no explicit eviction — these are dashboard reads tolerant of brief staleness, not correctness-critical), failing over to PostgreSQL and an `ops.kpi.cache.failures` metric the same way.
 
 ## Frontend
 
 `apps/ops-console` is a React + TypeScript single-page application for operators and admins. It calls only HTTP APIs (primarily Order Service's operations projection endpoints and Fulfillment Service's operator-action endpoints) and holds no direct database or Kafka access.
 
-## Observability (implemented in Phase 11)
+## Observability
 
 Every service exposes `/actuator/prometheus` (Micrometer) and ships OpenTelemetry traces over
 OTLP. Trace context is W3C, propagated across both HTTP and Kafka — and, crucially, across the
@@ -130,7 +129,7 @@ cover error rate, oldest outbox row, DLT growth, stuck orders, reconciliation fa
 down. Failure scenarios and k6 load tests live under `tests/`. See
 [`demo/FAILURE_DEMO.md`](demo/FAILURE_DEMO.md) and [`TESTING.md`](TESTING.md).
 
-## Packaging and delivery (implemented in Phase 12)
+## Packaging and delivery
 
 CI (`.github/workflows/`) runs format + unit + ArchUnit boundary rules, Testcontainers
 integration tests, a JaCoCo business-code coverage gate, event-contract validation, frontend

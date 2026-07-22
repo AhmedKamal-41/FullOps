@@ -39,7 +39,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Covers Phase 8's ADMIN-only dead-letter replay endpoint against real infrastructure: a malformed
+ * Covers the ADMIN-only dead-letter replay endpoint against real infrastructure: a malformed
  * FulfillmentStatusChanged event (missing newStatus) fails non-retryably in
  * FulfillmentEventsListener and reaches this service's real dead-letter topic, exactly like it
  * would in production. From there, an ADMIN can list and replay it — which republishes the exact

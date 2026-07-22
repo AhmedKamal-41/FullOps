@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 6 smoke flow: creates and stocks a fictional product, places two real
+# Payment smoke flow: creates and stocks a fictional product, places two real
 # orders through Order Service — one at a normal price (no matching
 # simulator_rules row, so it approves) and one at the seeded fictional decline
 # amount (1.00) — and observes the resulting PaymentAuthorized.v1/

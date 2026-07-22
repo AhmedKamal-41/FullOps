@@ -1,5 +1,5 @@
-// Every field here mirrors a backend DTO's exact JSON shape (see the ops-console research
-// notes cited in the Phase 10 plan) — not a client-convenience reshaping. In particular:
+// Every field here mirrors a backend DTO's exact JSON shape, not a client-convenience reshaping.
+// In particular:
 // `MoneyDto.amount` is always a decimal STRING, never coerce it with Number().
 
 export interface MoneyDto {

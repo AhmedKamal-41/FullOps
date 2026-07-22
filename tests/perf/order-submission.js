@@ -1,5 +1,5 @@
-// Objective (defined before running, per CLAUDE.md — no number below this file is real until a
-// run of this exact script produces it):
+// Objective (defined before running — no number below this file is real until a run of this exact
+// script produces it):
 //   Measure Order Service's order-submission endpoint (POST /api/v1/orders) under a small,
 //   local, single-node load: 10 virtual users for 30s, ramping up over 5s and down over 5s.
 //   Target: p95 latency under 500ms and an HTTP error rate under 1%, on this developer's laptop

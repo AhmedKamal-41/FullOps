@@ -28,7 +28,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * GET /api/v1/ops/incidents against a real Postgres — the status/kind/orderId filters
- * (IncidentSpecifications) combined, not just individually, since Order Detail (Phase 10) needs
+ * (IncidentSpecifications) combined, not just individually, since Order Detail needs
  * "this order's unresolved incidents" specifically.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)

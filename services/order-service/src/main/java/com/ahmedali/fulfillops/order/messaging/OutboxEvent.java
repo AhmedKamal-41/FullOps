@@ -10,7 +10,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 /**
- * Maps to the outbox_event table from the Phase 2 baseline migration. A row here and the domain
+ * Maps to the outbox_event table from the baseline messaging migration. A row here and the domain
  * change it describes are written in the same local transaction (see OutboxEventWriter); a separate
  * OutboxRelay poller is what actually reaches Kafka.
  */

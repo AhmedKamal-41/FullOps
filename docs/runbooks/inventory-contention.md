@@ -52,7 +52,7 @@ contention rather than an actual stock shortage.
   startup, so a restart (not a hotfix) is required. Treat this as a deliberate capacity decision,
   not a reflexive knob turn — a much higher value just delays the same problem under heavier load.
 - Never bypass the optimistic-lock retry with a direct, unguarded stock update — that's exactly
-  the oversell bug this design (Phase 5) exists to prevent.
+  the oversell bug this locking design exists to prevent.
 
 ## Validation
 

@@ -4,7 +4,7 @@ No production code lives here. This module exists to keep `contracts/events/` ho
 
 ## What "automated compatibility test" means today, honestly
 
-This phase (Phase 3) is the first time these schemas exist, so there is no prior version to diff a new one against yet — a real backward-compatibility check (does `v2` still accept everything `v1` accepted, where it's supposed to) isn't meaningfully testable until a `v2` schema exists to check. What's real and automated today:
+Only `v1` schemas exist, so there is no prior version to diff a new one against yet. A real backward-compatibility check (does `v2` still accept everything `v1` accepted, where it is supposed to) is not meaningfully testable until a `v2` schema exists. What is real and automated today:
 
 - Every example fixture validates against its own schema.
 - Every schema has an example (`everySchemaFileHasAMatchingExample`), so a schema can't quietly go undocumented.

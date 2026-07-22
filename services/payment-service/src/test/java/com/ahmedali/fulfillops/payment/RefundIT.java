@@ -40,7 +40,7 @@ import tools.jackson.databind.ObjectMapper;
  * Drives RefundService directly against a full application context backed by Testcontainers
  * Postgres/Kafka/Redis. Covers "refund once," "duplicate refund is a safe replay," "invalid refund
  * state is rejected," and "a reused Idempotency-Key with a different payload is a conflict" from
- * the Phase 6 charter, plus PaymentRefunded.v1 schema conformance.
+ * the refund contract, plus PaymentRefunded.v1 schema conformance.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")

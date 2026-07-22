@@ -7,8 +7,11 @@ target/
 *.iws
 .vscode/
 
-# Claude Code session-local permission settings, not project source.
-.claude/settings.local.json
+# Local coding-tool settings are not project source.
+.claude/
+.cursor/
+CLAUDE.md
+AGENTS.md
 
 .DS_Store
 Thumbs.db

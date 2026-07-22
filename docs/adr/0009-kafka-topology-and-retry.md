@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Phase 3 needed to decide three concrete things ADR 0001–0008 left open: how many Kafka topics exist and how they're named, what the message key and headers carry versus what only lives in the JSON body, and which library handles retry-with-backoff and dead-lettering for consumers.
+The event-driven design needed to decide three concrete things ADR 0001–0008 left open: how many Kafka topics exist and how they are named, what the message key and headers carry versus what only lives in the JSON body, and which library handles retry-with-backoff and dead-lettering for consumers.
 
 ## Decision
 
@@ -16,7 +16,7 @@ Phase 3 needed to decide three concrete things ADR 0001–0008 left open: how ma
 
 **Headers vs. body.** `eventId`, `eventType`, `eventVersion`, `correlationId`, and `causationId` (when present) are set as Kafka record headers in addition to appearing in the JSON envelope body. The body is the source of truth; the headers exist so tooling (and humans watching a topic) can identify a message without deserializing and parsing JSON first.
 
-**Retry and dead-lettering: Spring Kafka's own `@RetryableTopic`, not Resilience4j.** Spring Kafka (bundled with Spring Boot's `spring-boot-starter-kafka`) ships non-blocking retry with automatic retry-topic and dead-letter-topic creation, exception-based routing (`exclude = NonRetryableEventProcessingException.class` skips straight to the DLT — see `docs/DOMAIN_MODEL.md`'s failure categories and "never retry business rejections" in `CLAUDE.md`), and configurable backoff, all as first-party, already-present functionality. Resilience4j is a general-purpose resilience library with no special Kafka integration; adopting it here would mean verifying its compatibility with Spring Boot 4.1 and Spring Kafka 4.1 ourselves, for a retry/DLT feature Spring Kafka already provides natively. Per `CLAUDE.md`'s instruction to use Resilience4j only if an officially verified compatible version exists, and to prefer supported Spring mechanisms otherwise: this project does not use Resilience4j.
+**Retry and dead-lettering: Spring Kafka's own `@RetryableTopic`, not Resilience4j.** Spring Kafka (bundled with Spring Boot's `spring-boot-starter-kafka`) ships non-blocking retry with automatic retry-topic and dead-letter-topic creation, exception-based routing (`exclude = NonRetryableEventProcessingException.class` skips business rejections straight to the DLT), and configurable backoff as first-party functionality. Resilience4j is a general-purpose resilience library with no special Kafka integration, so this project uses the supported Spring mechanism already designed for Kafka retry and dead-letter handling.
 
 ## Consequences
 

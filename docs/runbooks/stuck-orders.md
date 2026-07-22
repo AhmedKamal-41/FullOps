@@ -51,7 +51,7 @@ one specific downstream service or Kafka topic is the common cause.
 
 - **A stuck non-terminal order** (not a cancellation): reconciliation already does the one safe
   thing it can — nothing forward-automated exists here by design, since guessing at "what should
-  have happened" is exactly the kind of decision CLAUDE.md reserves for a human. Fix whatever
+  have happened" is a decision reserved for a human operator. Fix whatever
   actually stalled it (restart the stuck downstream service, replay a dead-lettered event), and
   the order resumes on its own the next time the right event arrives — no manual status edit is
   ever needed or supported.

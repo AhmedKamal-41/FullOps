@@ -1,4 +1,4 @@
--- Phase 9: the operations read model — a denormalized, rebuildable projection built
+-- The operations read model — a denormalized, rebuildable projection built
 -- from the same lifecycle events OrderLifecycleTransaction/OrderCancellationTransaction/
 -- OrderRequiresReviewTransaction already apply to orders/order_status_history, plus the
 -- incident acknowledge/assign/resolve lifecycle and low-stock visibility. See
@@ -21,9 +21,8 @@ ALTER TABLE orders ADD COLUMN payment_technical_failure_count INTEGER NOT NULL D
 -- many dimensions cheaply, without joining orders/order_status_history/order_cancellation/
 -- operations_incident on every request. version exists because three independent Kafka
 -- listener threads (inventory/payment/fulfillment topics) can race to update the same
--- order's projection row during cancellation — the same lost-update risk Phase 8 already
--- hit once for order_cancellation (see PHASE_STATUS.md's Phase 8 section) — applied here
--- proactively instead of waiting to rediscover it.
+-- order's projection row during cancellation. The lock prevents those concurrent updates
+-- from silently overwriting one another.
 CREATE TABLE order_operations_projection (
     order_id                        UUID PRIMARY KEY REFERENCES orders (order_id),
     customer_id                     UUID NOT NULL,

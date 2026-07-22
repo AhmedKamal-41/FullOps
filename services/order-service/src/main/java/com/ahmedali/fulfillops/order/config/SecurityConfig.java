@@ -38,7 +38,7 @@ public class SecurityConfig {
 
   private static final String REQUIRED_AUDIENCE = "fulfillops-api";
 
-  // The ops console (apps/ops-console, Phase 10) is a browser SPA calling this API from its own
+  // The ops console (apps/ops-console) is a browser SPA calling this API from its own
   // origin — without this, the browser's own CORS preflight blocks every request before it ever
   // reaches Spring Security, regardless of how the bearer token or role check would have gone.
   // Not a secret, so — unlike DB/Kafka/Redis/OIDC settings — a sensible default lives directly in

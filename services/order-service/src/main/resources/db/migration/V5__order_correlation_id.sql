@@ -1,4 +1,4 @@
--- Phase 10: the ops console's Order Detail page shows the correlation ID that ties
+-- The ops console's Order Detail page shows the correlation ID that ties
 -- an order's whole saga together. Nothing in this service's schema carried it
 -- per-order before now (it only ever existed transiently, per Kafka event, in
 -- outbox_event.correlation_id). Nullable, not backfilled: an order placed before

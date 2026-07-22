@@ -1,4 +1,4 @@
--- Phase 8: persisted dead-letter events, so an ADMIN can find one by event id and safely
+-- Persisted dead-letter events, so an ADMIN can find one by event id and safely
 -- replay the exact bytes that failed — see DeadLetterEventRecorder/DeadLetterReplayService.
 -- (event_id, consumer_name) is the primary key because the same event can independently
 -- dead-letter for one listener's consumer group without affecting another's.

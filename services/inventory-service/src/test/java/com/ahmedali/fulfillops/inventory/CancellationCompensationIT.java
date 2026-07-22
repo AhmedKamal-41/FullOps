@@ -24,7 +24,7 @@ import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Covers Phase 8's new autonomous compensation listeners: PaymentDeclinedListener,
+ * Covers the autonomous compensation listeners: PaymentDeclinedListener,
  * FulfillmentCancelledListener, and OrderEventsListener's OrderCancellationRequested handling. All
  * three converge on the same release path and are each a safe no-op when there's nothing to
  * release.

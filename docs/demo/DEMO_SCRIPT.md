@@ -56,10 +56,9 @@ events** — no service reached into another's database to build it.
 ## 3. Follow one order across service and Kafka boundaries (optional, ~1 min)
 
 With the observability stack up (`docker compose -f infra/compose/docker-compose.yml up -d
-prometheus tempo grafana`), place one order and open its trace in Grafana → Tempo. In Phase 11
-this showed **one order as a single 26-span trace across all four services and every Kafka
-boundary** (verified against Tempo's API). This is the "single order followed end to end" claim
-made concrete.
+prometheus tempo grafana`), place one order and open its trace in Grafana → Tempo. Verify that the
+trace follows the order across all four services and the Kafka boundaries. This makes the
+"single order followed end to end" claim concrete without relying on a fixed span count.
 
 ## 4. Show a failure and its recovery (~1 min)
 

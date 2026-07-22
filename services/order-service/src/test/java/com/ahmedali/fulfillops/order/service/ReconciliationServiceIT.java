@@ -34,7 +34,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
- * Covers Phase 8's reconciliation charter directly against real Postgres/Kafka: a cancellation
+ * Covers reconciliation directly against real Postgres/Kafka: a cancellation
  * stuck past its threshold gets exactly one safe retry before escalating to REQUIRES_REVIEW, a
  * happy-path order stuck past its threshold escalates straight away, and the advisory lock actually
  * stops two concurrent reconcile() calls from double-processing the same stuck order.

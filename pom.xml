@@ -34,7 +34,7 @@
         <maven-failsafe-plugin.version>3.5.6</maven-failsafe-plugin.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <spotless-maven-plugin.version>3.8.0</spotless-maven-plugin.version>
-        <!-- Package-boundary and forbidden-cross-service-dependency tests (Phase 12). -->
+        <!-- Package-boundary and forbidden-cross-service-dependency tests. -->
         <archunit-junit5.version>1.3.0</archunit-junit5.version>
         <!--
             Minimum line coverage each service must keep on its business code — the
@@ -42,14 +42,10 @@
             configuration and DTO boilerplate are excluded from the count below, so
             this number reflects logic that is actually worth testing, not padding.
 
-            Set as a deliberately conservative floor: this codebase is exercised largely
-            through Testcontainers integration tests, and the sandbox this phase was built
-            in could not run that suite reliably, so a clean unit+integration coverage
-            figure was NOT measured locally (see docs/PHASE_STATUS.md Phase 12). CI's
-            integration job produces the real number; ratchet this up to sit just under it
-            once that is known. Unit tests alone cover 16–26% here, so the gate is set well
-            above that floor but below the full figure the integration tests are expected
-            to reach.
+            Set as a deliberately conservative floor because this codebase is exercised
+            largely through Testcontainers integration tests. CI produces the combined unit
+            and integration coverage result; ratchet this threshold only from a stable,
+            reproducible baseline.
         -->
         <coverage.business.line.minimum>0.60</coverage.business.line.minimum>
         <!--
@@ -112,11 +108,7 @@
                 </configuration>
             </plugin>
 
-            <!--
-                No integration tests exist yet (Phase 1 has no external services to test
-                against). Failsafe is wired up now so Phase 2+ integration tests only need
-                to be named *IT.java to be picked up automatically.
-            -->
+            <!-- Integration tests named *IT.java are picked up automatically. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
@@ -139,7 +131,7 @@
             </plugin>
 
             <!--
-                Coverage is now gated (Phase 12). The gate measures business code only:
+                Coverage is gated on business code only:
                 the excludes below drop the Spring Boot entry point, wiring/config classes,
                 and DTO request/response records, none of which carry logic worth a coverage
                 target and all of which would only invite meaningless tests written to game

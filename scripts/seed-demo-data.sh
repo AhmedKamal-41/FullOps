@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 10 seed flow: deterministically produces one order of each shape the ops
+# Demo seed flow: deterministically produces one order of each shape the ops
 # console needs to show — happy/delivered, inventory-rejected, payment-declined,
 # a low-stock signal, a plain in-flight order, a CANCELLATION_AFTER_DISPATCH
 # incident, and a CANCELLATION_STUCK incident — against the real Compose stack.

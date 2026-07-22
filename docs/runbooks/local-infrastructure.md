@@ -11,7 +11,7 @@ Covers `infra/compose/docker-compose.yml` (PostgreSQL, Kafka, Redis, Keycloak) a
 ## Startup order
 
 1. **`make infra-up`** — starts PostgreSQL, Kafka, Redis, and Keycloak, and blocks until Docker reports all four containers `healthy` (via `scripts/wait-for-infra-healthy.sh`). First run takes longer than later ones: Postgres runs its one-time database/user init script, and Keycloak does a one-time server augmentation build before it can import the realm — budget 1–2 minutes on the first run, well under a minute on later ones.
-2. **`make run-order`** / `run-inventory` / `run-payment` / `run-fulfillment` — each starts one service, in its own terminal, against the infra from step 1. Each sources `.env` and runs with `SPRING_PROFILES_ACTIVE=local`. A service will fail fast at startup with a clear "could not resolve placeholder" error if `.env` is missing a value it needs — this is intentional (see "Configure Spring profiles" in `docs/PHASE_STATUS.md`), not a bug.
+2. **`make run-order`** / `run-inventory` / `run-payment` / `run-fulfillment` — each starts one service, in its own terminal, against the infra from step 1. Each sources `.env` and runs with `SPRING_PROFILES_ACTIVE=local`. A service will fail fast at startup with a clear "could not resolve placeholder" error if `.env` is missing a value it needs — this is intentional, not a bug.
 3. **`make smoke`** — an alternative to step 2 for a one-shot check: starts each of the four services itself (one at a time, `local` profile), obtains a fictional token from Keycloak, calls `/api/v1/whoami` with and without it, and stops every service it started. Requires step 1 to have already succeeded.
 4. **`make infra-down`** — stops the infrastructure containers. Data is preserved in named Docker volumes (`postgres-data`, `redis-data`) by default. To also delete that data, run `make infra-down DOWN_ARGS=-v`.
 
@@ -29,7 +29,7 @@ Run `make logs` (or `docker logs <container-name>`) to see why. Two failure mode
 - Keycloak's health endpoint lives on port `9000` (the management interface), not `8080`. `docker-compose.yml`'s health check reflects this; a manual `curl localhost:8080/health/ready` will not work.
 
 **A service fails at startup with "Could not resolve placeholder '...'."**
-`.env` is missing a value, or you ran a service without sourcing it (use `make run-order`, etc., not a bare `./mvnw spring-boot:run`). This is deliberate fail-fast behavior — see `docs/PHASE_STATUS.md` Phase 2 — not something to work around with a default value in the YAML.
+`.env` is missing a value, or you ran a service without sourcing it (use `make run-order`, etc., not a bare `./mvnw spring-boot:run`). This is deliberate fail-fast behavior, not something to work around with a default value in the YAML.
 
 **A service fails at startup with a JWT/OAuth2 or "issuer" related error.**
 Confirm Keycloak is healthy and reachable at `http://localhost:8080/realms/fulfillops` (`curl http://localhost:8080/realms/fulfillops` should return realm metadata). If Keycloak was recently restarted, its in-memory dev database resets and it re-imports `infra/keycloak/realm-export.json` from scratch — this is expected; the fictional users, roles, and clients come back exactly as committed.

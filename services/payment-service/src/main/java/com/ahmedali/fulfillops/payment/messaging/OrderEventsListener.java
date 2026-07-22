@@ -21,8 +21,8 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Payment Service's view of everything order-service reports on its own topic: OrderPlaced (build a
- * local order-context projection — see OrderPaymentContext) and, as of Phase 8,
- * OrderCancellationRequested (refund whatever authorized payment this order still has — a no-op if
+ * local order-context projection — see OrderPaymentContext) and OrderCancellationRequested (refund
+ * whatever authorized payment this order still has — a no-op if
  * there is none, e.g. cancellation was requested before payment was ever authorized). Both event
  * types share one consumer group on this topic, since Kafka only delivers each message to one
  * consumer per group — two separate listener classes here would silently split the traffic between

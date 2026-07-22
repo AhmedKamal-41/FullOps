@@ -9,10 +9,8 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 /**
- * Orchestrates release attempts, same bounded-retry shape as ReservationService. Not yet wired to
- * any Kafka consumer this phase — PaymentDeclined.v1 and the fulfillment-cancellation event have no
- * producer until later phases (Payment Service is Phase 6, saga wiring is Phase 8) — this is the
- * internal capability those phases' listeners will call.
+ * Orchestrates release attempts with the same bounded-retry shape as ReservationService. Kafka
+ * compensation listeners call this capability when a reservation must be released.
  */
 @Service
 public class ReservationReleaseService {

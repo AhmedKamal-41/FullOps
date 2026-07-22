@@ -32,7 +32,7 @@ import org.springframework.test.context.ActiveProfiles;
  * FulfillmentVersionConflictException rather than a silently overwritten assignee. Submits work
  * with pool.submit(...) and collects Futures individually rather than
  * ExecutorService.invokeAll(...) — see order-service's OrderConcurrencyIT for the deadlock that
- * pattern caused in Phase 4.
+ * pattern can cause.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")

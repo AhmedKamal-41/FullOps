@@ -18,9 +18,8 @@ import java.util.UUID;
  * this service's own durable tables — see OperationsProjectionRebuildService.
  *
  * <p>version is an optimistic lock: three independent Kafka listener threads (inventory/payment/
- * fulfillment topics) can race to update the same order's projection row during cancellation, the
- * same lost-update risk Phase 8 hit once for OrderCancellation — see PHASE_STATUS.md's Phase 8
- * section. Applied here proactively rather than waiting to rediscover it.
+ * fulfillment topics) can race to update the same order's projection row during cancellation. The
+ * lock prevents those concurrent updates from silently overwriting one another.
  */
 @Entity
 @Table(name = "order_operations_projection")

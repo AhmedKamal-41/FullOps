@@ -1,6 +1,6 @@
 # Domain Model
 
-> Status: the event contracts below are real and enforced — see [`contracts/events/`](../contracts/events/) — and every service has working outbox/inbox messaging infrastructure. All four services now have real entities, command endpoints, and business rules — see [`PHASE_STATUS.md`](PHASE_STATUS.md).
+> Status: the event contracts below are real and enforced — see [`contracts/events/`](../contracts/events/) — and every service has working outbox/inbox messaging infrastructure. All four services have implemented entities, command endpoints, and business rules.
 
 ## Service ownership
 
@@ -30,7 +30,7 @@ No service reads or writes another service's tables. Every cross-service fact (e
 **`OrderItem`**
 - `sku`, `quantity` (integer), `unitPrice` (`BigDecimal`)
 
-**Operations projection** (Phase 9, real as of this document) — a denormalized read model built
+**Operations projection** — a denormalized read model built
 from every lifecycle event Order Service consumes (its own, plus Inventory/Payment/Fulfillment
 events), backing `/api/v1/ops/**`. Not a separate source of truth: `OrderOperationsProjection` (one
 row per order — status, stage timing, every reason code an operator filters by) and
@@ -42,9 +42,9 @@ literal Kafka replay (retention here is finite and there's no replay tooling in 
 event this service has ever processed already left a durable row before it advanced past it, which
 is what rebuild actually replays). `LowStockSignal` is a related but separate latest-state cache (one
 row per SKU, from `InventoryLowStock.v1`), explicitly excluded from rebuild since it isn't
-order-scoped history. `OperationsIncident` (Phase 8, extended in Phase 9 with an
-OPEN→ACKNOWLEDGED→RESOLVED lifecycle) and the new append-only `IncidentActionHistory` back the
-incident queue — see `docs/runbooks/INCIDENT_MANAGEMENT.md`. `ProjectionRebuildRun` records
+order-scoped history. `OperationsIncident` and the append-only `IncidentActionHistory` back the
+OPEN→ACKNOWLEDGED→RESOLVED incident queue — see `docs/runbooks/INCIDENT_MANAGEMENT.md`.
+`ProjectionRebuildRun` records
 rebuild-run metadata (started/completed, triggered by, orders processed).
 
 ### Inventory Service
@@ -52,7 +52,7 @@ rebuild-run metadata (started/completed, triggered by, orders processed).
 **`Product`** — a fictional catalog entry: `productId` (UUID), `sku` (unique), `name`, `description`.
 
 **`StockItem`** (implemented as `StockLevel`)
-- `sku`, `availableQuantity` (integer), `reservedQuantity` (integer), `version` (optimistic lock — see [`PHASE_STATUS.md`](PHASE_STATUS.md)'s Phase 5 section for the concurrency strategy this enables)
+- `sku`, `availableQuantity` (integer), `reservedQuantity` (integer), `version` (optimistic lock that prevents lost updates during concurrent reservations)
 
 **`Reservation`** (implemented as `InventoryReservation`) — one row per order, not per SKU, so a
 multi-item order's reservation is a single aggregate that succeeds or fails atomically as a whole:
@@ -70,8 +70,8 @@ three caused it (`source`: `ADMIN_ADJUSTMENT`, `RESERVATION`, `RELEASE`): `sku`,
 ### Payment Service
 
 **`Payment`** (implemented as `Payment`, corrected from this doc's earlier "ULID" — every ID in
-this codebase follows `Order.orderId`'s established `UUID.randomUUID()` convention, same
-correction Phase 5 made for `InventoryReservation.reservationId`)
+this codebase follows `Order.orderId`'s established `UUID.randomUUID()` convention, as does
+`InventoryReservation.reservationId`)
 - `paymentId` (UUID), `orderId` (unique), `customerId`, `amount` (`BigDecimal`), `currencyCode`,
   `status` (`AUTHORIZED`, `DECLINED`, `REFUNDED`), `declineReasonCode`/`declineReasonDetail`
   (set only when `DECLINED`), `version` (optimistic lock)
@@ -90,7 +90,7 @@ order, including attempts that never produce a `Payment` row because every one o
 `TEMPORARY_ERROR` rule recovers on its own; `0` means it never does).
 
 **`OrderPaymentContext`** — Payment Service's own local projection built from consuming
-`OrderPlaced.v1`, holding only what it needs and CLAUDE.md allows: `orderId`, `customerId`,
+`OrderPlaced.v1`, holding only the fields Payment Service needs: `orderId`, `customerId`,
 `amount`, `currencyCode`. Never order line items, never anything card- or PII-shaped.
 
 The payment service is a deterministic simulator: it never contacts a real payment network and never
@@ -104,8 +104,8 @@ Spring Boot starter.
 
 ### Fulfillment Service
 
-**`Fulfillment`** (`fulfillmentId` is a UUID, corrected from this doc's earlier "ULID" — the same
-correction Phase 5 and Phase 6 made for `InventoryReservation.reservationId` and `Payment.paymentId`)
+**`Fulfillment`** (`fulfillmentId` is a UUID, consistent with `InventoryReservation.reservationId`
+and `Payment.paymentId`)
 - `fulfillmentId`, `orderId` (unique), `status` (`ASSIGNED`, `PICKING`, `PACKED`, `DISPATCHED`,
   `DELIVERED`, `CANCELLED`), `warehouseId` (a fictional warehouse code, deterministically assigned
   from a fixed list by order id — no real warehouse-management system), `assigneeId` (the operator
@@ -178,12 +178,12 @@ All envelopes carry `eventId`, `eventType`, `eventVersion`, `occurredAt`, `corre
 | `InventoryReserved.v1` | Inventory | Stock was reserved for every line item. |
 | `InventoryRejected.v1` | Inventory | At least one line item could not be reserved. No `Reservation` exists to release later. |
 | `InventoryReleased.v1` | Inventory | A prior reservation was released back to available stock. |
-| `PaymentAuthorized.v1` | Payment | The simulated payment was authorized. Phase 9 added an optional `precedingTechnicalFailureCount` field (how many `TIMEOUT`/`TEMPORARY_ERROR`/`CIRCUIT_OPEN` attempts happened first), computed from Payment Service's own `payment_attempts` table, so Order Service's operations projection can report a payment technical-failure-rate proxy without Payment Service exposing attempt-level detail — see `docs/KPI_DICTIONARY.md`. |
-| `PaymentDeclined.v1` | Payment | The simulated payment was declined — a business rejection, never retried. Same Phase 9 `precedingTechnicalFailureCount` addition as `PaymentAuthorized.v1`. |
+| `PaymentAuthorized.v1` | Payment | The simulated payment was authorized. The optional `precedingTechnicalFailureCount` field records how many `TIMEOUT`/`TEMPORARY_ERROR`/`CIRCUIT_OPEN` attempts happened first, computed from Payment Service's own `payment_attempts` table, so Order Service's operations projection can report a payment technical-failure-rate proxy without Payment Service exposing attempt-level detail — see `docs/KPI_DICTIONARY.md`. |
+| `PaymentDeclined.v1` | Payment | The simulated payment was declined — a business rejection, never retried. It carries the same optional `precedingTechnicalFailureCount` field as `PaymentAuthorized.v1`. |
 | `PaymentRefunded.v1` | Payment | A prior authorization was refunded. |
 | `FulfillmentAssigned.v1` | Fulfillment | A fulfillment record was created, status `ASSIGNED`. |
-| `FulfillmentStatusChanged.v1` | Fulfillment | The fulfillment moved to a new status (`PICKING`, `PACKED`, `DISPATCHED`, `DELIVERED`, or `CANCELLED`) — one generic event instead of one type per status; consumers switch on `payload.newStatus`. Replaces the separate `FulfillmentPicking.v1` / `FulfillmentPacked.v1` / `FulfillmentDispatched.v1` / `FulfillmentDelivered.v1` / `FulfillmentCancelled.v1` events this document originally sketched in Phase 0 — consolidated once the event contracts were actually written in Phase 3. |
-| `InventoryLowStock.v1` | Inventory | A SKU's available quantity crossed its configured low-stock threshold, in either direction. SKU-scoped, not order-scoped — its `aggregateId` is a name-based UUID derived from the SKU, the one documented exception to "aggregateId is always the order ID" (see `contracts/events/README.md`). Edge-triggered: emitted once per crossing, not on every mutation while already on one side of the threshold. Added in Phase 9 to back the ops console's low-stock signal. |
+| `FulfillmentStatusChanged.v1` | Fulfillment | The fulfillment moved to a new status (`PICKING`, `PACKED`, `DISPATCHED`, `DELIVERED`, or `CANCELLED`) — one generic event instead of one type per status; consumers switch on `payload.newStatus`. |
+| `InventoryLowStock.v1` | Inventory | A SKU's available quantity crossed its configured low-stock threshold, in either direction. SKU-scoped, not order-scoped — its `aggregateId` is a name-based UUID derived from the SKU, the one documented exception to "aggregateId is always the order ID" (see `contracts/events/README.md`). Edge-triggered: emitted once per crossing, not on every mutation while already on one side of the threshold. |
 | `OrderCancellationRequested.v1` | Order | A cancellation was requested (customer/operator/admin) or reconciliation retried a stuck one; Inventory, Payment, and Fulfillment each independently react by releasing/refunding/cancelling whatever they own for that order, if anything. |
 | `OrderCancelled.v1` | Order | Order Service moved an order to `CANCELLED` after every required compensation was confirmed (or immediately, if nothing was ever reserved or charged). |
 | `OrderRequiresReview.v1` | Order | Order Service could not safely auto-resolve an order; an operator must act. |
@@ -278,7 +278,7 @@ sequenceDiagram
 
 ## Related documents
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — service boundaries, choreography, the system context diagram, and (as of Phase 3) the Kafka topic/partitioning/retry conventions every service actually runs.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — service boundaries, choreography, the system context diagram, and the Kafka topic/partitioning/retry conventions every service runs.
 - [`adr/`](adr/) — the reasoning behind outbox/inbox, at-least-once delivery, and event contract decisions referenced above.
 - [`contracts/events/README.md`](../contracts/events/README.md) — the authoritative, machine-validated wire format for every event named on this page.
 - [`KPI_DICTIONARY.md`](KPI_DICTIONARY.md) — exact formulas for every number the operations API returns.

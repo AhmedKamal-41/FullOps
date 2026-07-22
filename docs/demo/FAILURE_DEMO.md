@@ -59,12 +59,10 @@ validation, and escalation:
 - [Outbox backlog](../runbooks/outbox-backlog.md)
 - [Incident lifecycle](../runbooks/INCIDENT_MANAGEMENT.md)
 
-## Screenshot capture (not committed in this repo)
+## Screenshot capture
 
-Sanitized Grafana, trace, and failure-recovery screenshots are **not** included — capturing them
-requires running the full observability stack, which the Phase 13 build environment could not do
-reliably (see [`docs/KNOWN_LIMITATIONS.md`](../KNOWN_LIMITATIONS.md)). To capture them yourself:
-bring up the stack as above, run a scenario, and screenshot (1) the relevant Grafana dashboard
+Sanitized Grafana, trace, and failure-recovery screenshots require the full observability stack.
+To capture them, bring up the stack as above, run a scenario, and screenshot (1) the relevant Grafana dashboard
 during the failure, (2) the Tempo trace of one affected order, and (3) the dashboard after
 recovery. Save them under `docs/screenshots/` as `08-grafana-*.png`, `09-trace-*.png`,
 `10-recovery-*.png`.

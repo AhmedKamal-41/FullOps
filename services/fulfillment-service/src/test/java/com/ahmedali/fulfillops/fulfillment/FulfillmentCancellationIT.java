@@ -36,7 +36,7 @@ import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Covers the Phase 7 cancellation rules: allowed before DISPATCHED (with a schema-valid
+ * Covers the cancellation rules: allowed before DISPATCHED (with a schema-valid
  * FulfillmentStatusChanged.v1 carrying reasonCode=OPERATOR_CANCELLED), rejected with a
  * machine-readable reason once DISPATCHED, and idempotent (a no-op, not an error) when repeated.
  */

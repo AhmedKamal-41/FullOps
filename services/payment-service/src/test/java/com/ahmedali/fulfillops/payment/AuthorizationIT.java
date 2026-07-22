@@ -41,7 +41,7 @@ import tools.jackson.databind.ObjectMapper;
  * Drives OrderEventsListener and InventoryReservedListener directly against a full application
  * context backed by Testcontainers Postgres/Kafka/Redis, asserting directly against the database
  * what the authorization flow actually committed. Covers the approved, declined,
- * duplicate-delivery, and missing-order-context scenarios from the Phase 6 charter. None of these
+ * duplicate-delivery, and missing-order-context scenarios. None of these
  * scenarios exercises the retry/circuit-breaker path itself (ResilienceIT owns that), but the
  * CircuitBreaker bean is still reset before each test here too: Spring caches and reuses one
  * ApplicationContext across every test class with this exact @SpringBootTest/@Import configuration,

@@ -32,9 +32,8 @@ REQUIRED_DOCS=(
   "README.md" "CONTRIBUTING.md" "SECURITY.md" "LICENSE" ".env.example"
   "docs/ARCHITECTURE.md" "docs/DOMAIN_MODEL.md" "docs/TESTING.md" "docs/EVENT_CATALOG.md"
   "docs/KPI_DICTIONARY.md" "docs/SECURITY.md" "docs/KNOWN_LIMITATIONS.md"
-  "docs/RESUME_EVIDENCE.md" "docs/PHASE_STATUS.md" "docs/RELEASE.md"
+  "docs/RELEASE.md"
   "docs/adr/README.md" "docs/demo/DEMO_SCRIPT.md" "docs/demo/FAILURE_DEMO.md"
-  "docs/FINAL_AUDIT.md"
 )
 for doc in "${REQUIRED_DOCS[@]}"; do
   if [ -f "$doc" ]; then ok "$doc"; else fail "missing document: $doc"; fi

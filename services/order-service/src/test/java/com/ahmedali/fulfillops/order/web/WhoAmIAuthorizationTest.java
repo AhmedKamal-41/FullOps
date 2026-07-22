@@ -52,7 +52,7 @@ class WhoAmIAuthorizationTest {
         .andExpect(jsonPath("$.roles[0]").value("ROLE_CUSTOMER"));
   }
 
-  // The ops console (Phase 10) is a browser SPA on a different origin — without a real CORS
+  // The ops console is a browser SPA on a different origin — without a real CORS
   // preflight response, the browser blocks every request before Spring Security even sees it,
   // no matter how the token/role check would have gone. This drives an actual OPTIONS preflight
   // through the real filter chain rather than just asserting a bean exists.

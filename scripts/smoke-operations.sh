@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 9 smoke flow: seeds a product, places one order that inventory rejects
+# Operations smoke flow: seeds a product, places one order that inventory rejects
 # and one that reaches PAYMENT_AUTHORIZED, then exercises the ops API end to
 # end against real data — overview KPIs, the work queue, the backlog, the
 # order timeline, and a projection rebuild — before confirming the rebuild

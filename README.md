@@ -2,14 +2,11 @@
 
 **Event-driven order fulfillment and reliability platform.**
 
-> **Status — Phase 13 (documentation & evidence).** Phases 0–12 are complete: four
-> independently deployable Spring Boot (Java 21) services coordinate through versioned Kafka
-> events with a transactional outbox and idempotent inbox; a React/TypeScript operations
-> console; Prometheus metrics, OpenTelemetry tracing, Grafana dashboards, alert rules, failure
-> scenarios, and k6 load tests; and CI/CD with quality gates plus Kubernetes and (optional,
-> never-applied) AWS Terraform packaging. Every capability described below is running code with
-> tests; anything not yet built is labeled **(planned)**. What was actually run versus written
-> is tracked honestly in [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md), and boundaries are in
+> **Status — complete with documented limitations.** Four independently deployable Spring Boot
+> services coordinate through versioned Kafka events with transactional outboxes and idempotent
+> inboxes. The repository also includes a React/TypeScript operations console, Prometheus metrics,
+> OpenTelemetry tracing, Grafana dashboards, failure scenarios, k6 load tests, CI quality gates,
+> and deployment packaging. Current boundaries are documented in
 > [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md).
 
 ## What it is
@@ -184,7 +181,7 @@ Four test levels — unit, web-slice, Testcontainers integration, and frontend (
 Playwright) — plus JSON-Schema contract validation. Full strategy and commands:
 [`docs/TESTING.md`](docs/TESTING.md).
 
-- **Unit + web-slice tests, run this phase (`./mvnw -B test`): 176 tests, 0 failures** (contracts
+- **Unit + web-slice tests (`./mvnw -B test`): 176 tests, 0 failures** (contracts
   14, order 70, inventory 39, payment 30, fulfillment 23).
 - **Integration tests: 40 `*IT.java`** files (Testcontainers) — run with `./mvnw -B verify`.
 - **Coverage gate:** business code only, floor **0.60** line coverage; the true unit+integration
@@ -195,9 +192,8 @@ Playwright) — plus JSON-Schema contract validation. Full strategy and commands
 
 ## Observability and failure demos
 
-Prometheus metrics and OpenTelemetry tracing on every service — one order follows as a single
-distributed trace across all four services and every Kafka boundary (verified live in Phase 11 as
-one 26-span trace from Tempo). Grafana ships five provisioned dashboards and six alert rules
+Prometheus metrics and OpenTelemetry tracing cover every service, allowing one order to be
+followed across all four services and Kafka boundaries. Grafana ships five provisioned dashboards and six alert rules
 (`infra/compose/observability/`). Six committed failure scenarios
 ([`tests/failure-scenarios/`](tests/failure-scenarios/)) visibly trigger and recover from known
 incidents — payment outage, Kafka outage/backlog, Redis fallback, duplicate delivery, poison
@@ -236,33 +232,20 @@ docs/                # architecture, domain model, ADRs, testing, security, KPIs
 ## Known limitations
 
 Delivery is at-least-once (not exactly-once); payment is simulated; K8s/Terraform are packaging
-references (Terraform is never applied); some admin actions are HTTP-only with no console screen
-yet; CI has not run on GitHub so its coverage number is pending. The full, honest list is
+references (Terraform is never applied); and some admin actions are HTTP-only with no console screen
+yet. The full, honest list is
 [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md).
-
-## Roadmap
-
-| Phase | Outcome | Status |
-|---|---|---|
-| 0–10 | Charter → services → saga → ops read model → console | **complete** |
-| 11 | Metrics, traces, alerts, load/failure tests | **complete** |
-| 12 | CI/CD, supply-chain checks, deployment packaging | **complete** |
-| 13 | Documentation, screenshots, demo, resume evidence | **in progress** |
-| 14 | Final adversarial audit | (planned) |
-
-Per-phase detail and verification: [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md).
 
 ## Documents
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/DOMAIN_MODEL.md`](docs/DOMAIN_MODEL.md) · [ADR index](docs/adr/README.md)
 - [`docs/EVENT_CATALOG.md`](docs/EVENT_CATALOG.md) · [`docs/KPI_DICTIONARY.md`](docs/KPI_DICTIONARY.md)
 - [`docs/TESTING.md`](docs/TESTING.md) · [`docs/SECURITY.md`](docs/SECURITY.md) · [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md)
-- [`docs/demo/DEMO_SCRIPT.md`](docs/demo/DEMO_SCRIPT.md) · [`docs/demo/FAILURE_DEMO.md`](docs/demo/FAILURE_DEMO.md) · [`docs/RESUME_EVIDENCE.md`](docs/RESUME_EVIDENCE.md)
+- [`docs/demo/DEMO_SCRIPT.md`](docs/demo/DEMO_SCRIPT.md) · [`docs/demo/FAILURE_DEMO.md`](docs/demo/FAILURE_DEMO.md)
 - [`docs/RELEASE.md`](docs/RELEASE.md) · [`docs/runbooks/`](docs/runbooks/) · [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`SECURITY.md`](SECURITY.md)
 
 ## Engineering conventions
 
-Every change follows the `plain-readable-code` style —
-[`.claude/skills/plain-readable-code/SKILL.md`](.claude/skills/plain-readable-code/SKILL.md) and
-[`AGENTS.md`](AGENTS.md). Build with `make verify-all`; audit docs/evidence with
-`scripts/audit-repo.sh`.
+Code favors explicit control flow, descriptive names, focused responsibilities, and established
+libraries for security and infrastructure concerns. Build with `make verify-all`; audit
+documentation and evidence with `scripts/audit-repo.sh`.

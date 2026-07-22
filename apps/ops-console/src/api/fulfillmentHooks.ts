@@ -26,8 +26,7 @@ export function useFulfillments(status: FulfillmentStatus, enabled = true) {
 }
 
 // The order-service and fulfillment-service APIs have no "find fulfillment by order"
-// lookup (see the Phase 10 plan's three scoped backend corrections — this wasn't one of
-// them). Order Detail finds its order's fulfillment by checking each open fulfillment
+// lookup. Order Detail finds its order's fulfillment by checking each open fulfillment
 // status's list, which is small in this system's operational scale.
 const OPEN_FULFILLMENT_STATUSES: FulfillmentStatus[] = [
   "ASSIGNED",

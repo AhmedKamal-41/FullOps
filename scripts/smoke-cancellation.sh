@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 8 smoke flow: creates and stocks a fictional product, places one real
+# Cancellation smoke flow: creates and stocks a fictional product, places one real
 # order at a normal price, then has the same customer request cancellation
 # before fulfillment is assigned — following the real choreography (Order
 # Service emits OrderCancellationRequested.v1, Inventory Service releases the

@@ -16,4 +16,4 @@ Run Keycloak locally via Docker Compose as the OIDC identity provider, with `CUS
 
 - Token validation and role-based authorization are enforced consistently across services using a well-established library (Spring Security) instead of hand-rolled JWT handling, in line with the project's "don't be cheap about tooling" style rule.
 - Each service can be tested for authorization behavior independently (unauthenticated, wrong role, expired token) without standing up the whole system.
-- Keycloak is a local-development and demo concern; production identity federation, social login, or multi-tenant realm design are explicitly out of scope (see `PROJECT_CHARTER.md`).
+- Keycloak is a local-development and demo concern; production identity federation, social login, or multi-tenant realm design are explicitly out of scope (see [`KNOWN_LIMITATIONS.md`](../KNOWN_LIMITATIONS.md)).

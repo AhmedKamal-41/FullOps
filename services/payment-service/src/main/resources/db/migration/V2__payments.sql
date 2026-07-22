@@ -104,8 +104,8 @@ INSERT INTO simulator_rules (rule_id, match_amount, outcome, failing_attempts, d
 -- Payment Service's own local projection of the order facts it needs, built from
 -- consuming order-service's OrderPlaced.v1 (the sanctioned "read events, don't read
 -- another service's tables" pattern — see docs/adr/0001-service-boundaries.md).
--- Deliberately holds only what CLAUDE.md allows: order id, customer id, currency,
--- and amount — never line items, never anything card- or PII-shaped.
+-- Deliberately holds only the fields Payment Service needs: order id, customer id,
+-- currency, and amount — never line items, never anything card- or PII-shaped.
 CREATE TABLE order_payment_context (
     order_id        UUID PRIMARY KEY,
     customer_id     UUID NOT NULL,

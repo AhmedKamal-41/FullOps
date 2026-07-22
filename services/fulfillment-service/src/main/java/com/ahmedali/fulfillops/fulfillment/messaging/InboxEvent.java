@@ -6,7 +6,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Maps to the inbox_event table from the Phase 2 baseline migration. */
+/** Maps to the inbox_event table from the baseline messaging migration. */
 @Entity
 @Table(name = "inbox_event")
 public class InboxEvent {

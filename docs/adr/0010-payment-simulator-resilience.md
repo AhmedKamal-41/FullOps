@@ -6,16 +6,15 @@ Accepted
 
 ## Context
 
-Phase 6 needs bounded retry and a circuit breaker around Payment Service's call to its (simulated)
+Payment Service needs bounded retry and a circuit breaker around its call to the simulated
 payment provider — a genuinely different concern from the Kafka consumer retry/DLT ADR 0009 already
 settled. ADR 0009 explicitly scoped itself to Kafka only and flagged this exact situation as one to
 evaluate separately: "If a future requirement needs resilience patterns Spring Kafka doesn't cover
 (e.g., a circuit breaker around an outbound HTTP call, not a Kafka concern at all), that would be
 evaluated on its own merits then."
 
-`CLAUDE.md` requires using Resilience4j's Spring Boot starter only if an officially verified
-Spring Boot 4.1-compatible version exists, and a supported alternative or Resilience4j's own core API
-otherwise — never forcing an incompatible dependency.
+The implementation must not force a Spring Boot starter that has no officially published,
+compatible release. Resilience4j's framework-agnostic core API is an acceptable alternative.
 
 ## What was checked
 
@@ -27,7 +26,7 @@ own GitHub issue tracker (#2351, #2371, #2384, #2421, #2427) confirms Spring Boo
 to a `resilience4j-spring-boot4` module in source, and separately confirms that module was omitted
 from the `resilience4j-bom` and, as of the versions actually published, from Maven Central release
 artifacts a project could depend on without pointing at an unreleased snapshot or building from
-source. That is exactly the "not officially compatible yet" case `CLAUDE.md` anticipates.
+source. The Spring Boot 4 starter was therefore not a safe published dependency for this project.
 
 ## Decision
 
