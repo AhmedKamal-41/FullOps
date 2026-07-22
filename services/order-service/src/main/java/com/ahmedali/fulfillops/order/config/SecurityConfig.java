@@ -28,9 +28,10 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
- * Native Spring Security OAuth2 Resource Server config (not the deprecated Keycloak adapter). Only
- * /api/v1/whoami is secured this phase; health and info stay public so container/orchestrator
- * health checks never need a token.
+ * Native Spring Security OAuth2 Resource Server config (not the deprecated Keycloak adapter).
+ * Customers place, read, and cancel their own orders; the operations API and admin endpoints are
+ * OPERATOR/ADMIN and ADMIN respectively. Health, info, Prometheus, and the OpenAPI docs stay public
+ * so container/orchestrator health checks and a scrape target never need a token.
  */
 @Configuration
 public class SecurityConfig {
