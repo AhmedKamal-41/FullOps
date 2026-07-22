@@ -26,7 +26,7 @@ jobs:
     name: fmt, validate, tflint, and security scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
