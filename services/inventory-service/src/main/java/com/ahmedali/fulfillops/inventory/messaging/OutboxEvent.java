@@ -39,6 +39,11 @@ public class OutboxEvent {
   private Instant publishedAt;
   private Instant createdAt;
 
+  // W3C trace context (JSON-encoded traceparent/tracestate) active when this row was written —
+  // see OutboxEventWriter (captures it) and OutboxRelay (resumes it at publish time). Null when
+  // nothing was being traced at write time.
+  private String traceContext;
+
   protected OutboxEvent() {
     // JPA
   }
@@ -52,7 +57,8 @@ public class OutboxEvent {
       UUID causationId,
       String producer,
       String payload,
-      Instant occurredAt) {
+      Instant occurredAt,
+      String traceContext) {
     this.eventId = eventId;
     this.eventType = eventType;
     this.eventVersion = eventVersion;
@@ -65,6 +71,7 @@ public class OutboxEvent {
     this.state = OutboxState.PENDING.name();
     this.attemptCount = 0;
     this.createdAt = Instant.now();
+    this.traceContext = traceContext;
   }
 
   public UUID getEventId() {
@@ -109,5 +116,9 @@ public class OutboxEvent {
 
   public int getAttemptCount() {
     return attemptCount;
+  }
+
+  public String getTraceContext() {
+    return traceContext;
   }
 }

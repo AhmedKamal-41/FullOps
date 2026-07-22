@@ -3,6 +3,7 @@ package com.ahmedali.fulfillops.payment.service;
 import com.ahmedali.fulfillops.payment.domain.PaymentAttempt;
 import com.ahmedali.fulfillops.payment.domain.PaymentAttemptOutcome;
 import com.ahmedali.fulfillops.payment.domain.PaymentAttemptRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -19,9 +20,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentAttemptRecorder {
 
   private final PaymentAttemptRepository paymentAttemptRepository;
+  private final MeterRegistry meterRegistry;
 
-  public PaymentAttemptRecorder(PaymentAttemptRepository paymentAttemptRepository) {
+  public PaymentAttemptRecorder(
+      PaymentAttemptRepository paymentAttemptRepository, MeterRegistry meterRegistry) {
     this.paymentAttemptRepository = paymentAttemptRepository;
+    this.meterRegistry = meterRegistry;
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -29,5 +33,6 @@ public class PaymentAttemptRecorder {
       UUID orderId, int attemptNumber, PaymentAttemptOutcome outcome, String detail) {
     paymentAttemptRepository.save(
         new PaymentAttempt(UUID.randomUUID(), orderId, attemptNumber, outcome, detail));
+    meterRegistry.counter("payment.attempt.outcome", "outcome", outcome.name()).increment();
   }
 }

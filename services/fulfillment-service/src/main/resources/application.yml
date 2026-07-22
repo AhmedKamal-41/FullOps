@@ -1,6 +1,16 @@
 spring:
   application:
     name: fulfillment-service
+  task:
+    scheduling:
+      pool:
+        # Spring Boot's own default here is a single thread shared by every @Scheduled method in
+        # the process. OutboxRelay's publish loop can legitimately block for tens of seconds
+        # during a real Kafka outage (see tests/failure-scenarios/kafka-outage-outbox-backlog.sh)
+        # — with only one thread, that block would also stop OutboxBacklogMetrics from ever
+        # running, going dark on exactly the incident this phase's dashboards/alerts exist to
+        # surface.
+        size: 5
   kafka:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -11,6 +21,12 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       auto-offset-reset: earliest
+    # Lets Spring for Apache Kafka's Observation API time each publish/consume and propagate
+    # the W3C traceparent header across the topic, so one trace can cross a Kafka boundary.
+    template:
+      observation-enabled: true
+    listener:
+      observation-enabled: true
 
 server:
   port: 8084
@@ -19,7 +35,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       probes:
@@ -29,6 +45,34 @@ management:
       enabled: true
     readinessstate:
       enabled: true
+  tracing:
+    sampling:
+      # Demo default: trace every request so the failure scenarios always have something to
+      # show. A real environment would sample far less to control trace-backend volume/cost.
+      probability: 1.0
+  # management.otlp.tracing.endpoint is deprecated (error level) as of Boot 4.0 — this is its
+  # replacement (see spring-boot-micrometer-tracing-opentelemetry's configuration metadata).
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: http://localhost:4318/v1/traces
+  otlp:
+    metrics:
+      export:
+        # Prometheus (scrape-based, via /actuator/prometheus) is this project's one metrics
+        # pipeline — without this, Boot also auto-configures an OTLP metrics push to Tempo's
+        # OTLP endpoint, which only understands traces and just logs a warning every push.
+        enabled: false
+
+# Built into Spring Boot since 3.4 — no extra logging library dependency needed. MDC content
+# (correlationId, eventId, aggregateId, environment — see CorrelationIdFilter and the Kafka
+# listeners) is included automatically in the JSON output, alongside traceId/spanId once tracing
+# is active.
+logging:
+  structured:
+    format:
+      console: logstash
 
 app:
   messaging:

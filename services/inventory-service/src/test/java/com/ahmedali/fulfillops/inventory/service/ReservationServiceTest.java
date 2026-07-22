@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.ahmedali.fulfillops.inventory.cache.InventoryAvailabilityCache;
 import com.ahmedali.fulfillops.inventory.domain.StockLevel;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,7 +39,8 @@ class ReservationServiceTest {
   @BeforeEach
   void setUp() {
     reservationService =
-        new ReservationService(reservationTransaction, availabilityCache, MAX_ATTEMPTS);
+        new ReservationService(
+            reservationTransaction, availabilityCache, new SimpleMeterRegistry(), MAX_ATTEMPTS);
   }
 
   @Test

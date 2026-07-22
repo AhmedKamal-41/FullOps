@@ -9,6 +9,8 @@ import com.ahmedali.fulfillops.order.domain.OrderCancellationRepository;
 import com.ahmedali.fulfillops.order.domain.OrderRepository;
 import com.ahmedali.fulfillops.order.domain.OrderRequiresReviewReasonCode;
 import com.ahmedali.fulfillops.order.domain.OrderStatus;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -63,6 +65,7 @@ public class ReconciliationService {
   private final IncidentService incidentService;
   private final OrderCancellationTransaction cancellationTransaction;
   private final OrderRequiresReviewTransaction requiresReviewTransaction;
+  private final MeterRegistry meterRegistry;
   private final Duration stuckThreshold;
   private final Duration cancellationStuckThreshold;
 
@@ -74,6 +77,7 @@ public class ReconciliationService {
       IncidentService incidentService,
       OrderCancellationTransaction cancellationTransaction,
       OrderRequiresReviewTransaction requiresReviewTransaction,
+      MeterRegistry meterRegistry,
       @Value("${app.reconciliation.stuck-threshold}") Duration stuckThreshold,
       @Value("${app.reconciliation.cancellation-stuck-threshold}")
           Duration cancellationStuckThreshold) {
@@ -84,14 +88,18 @@ public class ReconciliationService {
     this.incidentService = incidentService;
     this.cancellationTransaction = cancellationTransaction;
     this.requiresReviewTransaction = requiresReviewTransaction;
+    this.meterRegistry = meterRegistry;
     this.stuckThreshold = stuckThreshold;
     this.cancellationStuckThreshold = cancellationStuckThreshold;
   }
 
   public void reconcile() {
+    Timer.Sample sample = Timer.start(meterRegistry);
+    String outcome = "completed";
     try (Connection lockConnection = dataSource.getConnection()) {
       if (!tryAcquireLock(lockConnection)) {
         log.debug("another instance already holds the reconciliation lock, skipping this run");
+        outcome = "skipped";
         return;
       }
       try {
@@ -101,7 +109,13 @@ public class ReconciliationService {
         releaseLock(lockConnection);
       }
     } catch (SQLException e) {
+      outcome = "failed";
       throw new IllegalStateException("failed to acquire the reconciliation advisory lock", e);
+    } catch (RuntimeException e) {
+      outcome = "failed";
+      throw e;
+    } finally {
+      sample.stop(meterRegistry.timer("reconciliation.run", "outcome", outcome));
     }
   }
 
@@ -120,6 +134,9 @@ public class ReconciliationService {
             .findByOrderIdAndKindAndStatus(
                 orderId, IncidentKind.CANCELLATION_STUCK, IncidentStatus.OPEN)
             .isPresent();
+    meterRegistry
+        .counter("reconciliation.stuck.orders", "stage", "CANCELLATION_PENDING")
+        .increment();
 
     if (!alreadyRetried) {
       log.info("cancellation stuck for order {}, attempting one safe recovery retry", orderId);
@@ -132,6 +149,7 @@ public class ReconciliationService {
               + outstanding(tracker));
       cancellationTransaction.republishCancellationRequested(
           orderId, tracker.getReasonDetail(), UUID.randomUUID());
+      meterRegistry.counter("reconciliation.recovery.outcome", "outcome", "retried").increment();
       return;
     }
 
@@ -147,6 +165,7 @@ public class ReconciliationService {
         orderId,
         IncidentKind.COMPENSATION_EXHAUSTED,
         "cancellation compensation exhausted: " + outstanding(tracker));
+    meterRegistry.counter("reconciliation.recovery.outcome", "outcome", "escalated").increment();
   }
 
   private void reconcileStuckHappyPathOrders() {
@@ -167,6 +186,10 @@ public class ReconciliationService {
           order.getOrderId(),
           IncidentKind.COMPENSATION_EXHAUSTED,
           "stuck in " + order.getStatus() + " since " + order.getUpdatedAt());
+      meterRegistry
+          .counter("reconciliation.stuck.orders", "stage", order.getStatus().name())
+          .increment();
+      meterRegistry.counter("reconciliation.recovery.outcome", "outcome", "escalated").increment();
     }
   }
 

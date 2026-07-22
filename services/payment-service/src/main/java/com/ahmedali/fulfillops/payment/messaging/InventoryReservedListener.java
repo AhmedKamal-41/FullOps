@@ -29,14 +29,17 @@ public class InventoryReservedListener {
 
   private final InboxEventRepository inboxEventRepository;
   private final AuthorizationService authorizationService;
+  private final KafkaListenerMetrics metrics;
   private final ObjectMapper objectMapper;
 
   public InventoryReservedListener(
       InboxEventRepository inboxEventRepository,
       AuthorizationService authorizationService,
+      KafkaListenerMetrics metrics,
       ObjectMapper objectMapper) {
     this.inboxEventRepository = inboxEventRepository;
     this.authorizationService = authorizationService;
+    this.metrics = metrics;
     this.objectMapper = objectMapper;
   }
 
@@ -59,23 +62,37 @@ public class InventoryReservedListener {
 
     MDC.put("correlationId", envelope.correlationId().toString());
     MDC.put("eventId", envelope.eventId().toString());
+    MDC.put("aggregateId", envelope.aggregateId().toString());
     try {
       InboxEventId id = new InboxEventId(envelope.eventId(), CONSUMER_NAME);
       if (inboxEventRepository.existsById(id)) {
         log.info(
             "duplicate delivery of InventoryReserved for order {}, already processed, skipping",
             envelope.aggregateId());
+        metrics.recordDuplicate(envelope.eventType());
         return;
       }
 
-      authorizationService.authorize(
-          envelope.aggregateId(), envelope.correlationId(), envelope.eventId());
+      try {
+        authorizationService.authorize(
+            envelope.aggregateId(), envelope.correlationId(), envelope.eventId());
+      } catch (RuntimeException processingFailure) {
+        log.warn(
+            "processing failed for {} on order {}, errorClass={}",
+            envelope.eventType(),
+            envelope.aggregateId(),
+            processingFailure.getClass().getSimpleName());
+        metrics.recordProcessingFailure(
+            envelope.eventType(), processingFailure.getClass().getSimpleName());
+        throw processingFailure;
+      }
 
       inboxEventRepository.save(new InboxEvent(id, envelope.eventType(), envelope.aggregateId()));
       log.info("processed InventoryReserved for order {}", envelope.aggregateId());
     } finally {
       MDC.remove("correlationId");
       MDC.remove("eventId");
+      MDC.remove("aggregateId");
     }
   }
 
@@ -84,6 +101,7 @@ public class InventoryReservedListener {
     // Deliberately does not log envelopeJson itself — failure metadata (event type, id) is safe
     // to log; a raw payload might not be, so it isn't logged wholesale.
     EventEnvelope envelope = objectMapper.readValue(envelopeJson, EventEnvelope.class);
+    metrics.recordDeadLettered(envelope.eventType());
     log.error(
         "event routed to dead-letter topic after exhausting retries: type={} eventId={} orderId={}",
         envelope.eventType(),

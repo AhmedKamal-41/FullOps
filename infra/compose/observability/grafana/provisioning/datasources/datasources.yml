@@ -1,0 +1,26 @@
+# Version-controlled Grafana datasource provisioning — both containers are reached by their
+# Compose service name (grafana and prometheus/tempo share this Compose network).
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      timeInterval: 15s
+
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    jsonData:
+      # Lets a trace's span attributes jump straight to the matching Prometheus panels —
+      # correlationId/service are on every span once Kafka/HTTP observation is enabled.
+      tracesToMetrics:
+        datasourceUid: prometheus
+      serviceMap:
+        datasourceUid: prometheus

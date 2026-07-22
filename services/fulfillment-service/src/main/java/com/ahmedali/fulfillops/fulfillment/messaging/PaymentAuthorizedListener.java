@@ -27,14 +27,17 @@ public class PaymentAuthorizedListener {
 
   private final InboxEventRepository inboxEventRepository;
   private final FulfillmentAssignmentService fulfillmentAssignmentService;
+  private final KafkaListenerMetrics metrics;
   private final ObjectMapper objectMapper;
 
   public PaymentAuthorizedListener(
       InboxEventRepository inboxEventRepository,
       FulfillmentAssignmentService fulfillmentAssignmentService,
+      KafkaListenerMetrics metrics,
       ObjectMapper objectMapper) {
     this.inboxEventRepository = inboxEventRepository;
     this.fulfillmentAssignmentService = fulfillmentAssignmentService;
+    this.metrics = metrics;
     this.objectMapper = objectMapper;
   }
 
@@ -55,23 +58,37 @@ public class PaymentAuthorizedListener {
 
     MDC.put("correlationId", envelope.correlationId().toString());
     MDC.put("eventId", envelope.eventId().toString());
+    MDC.put("aggregateId", envelope.aggregateId().toString());
     try {
       InboxEventId id = new InboxEventId(envelope.eventId(), CONSUMER_NAME);
       if (inboxEventRepository.existsById(id)) {
         log.info(
             "duplicate delivery of PaymentAuthorized for order {}, already processed, skipping",
             envelope.aggregateId());
+        metrics.recordDuplicate(envelope.eventType());
         return;
       }
 
-      fulfillmentAssignmentService.assign(
-          envelope.aggregateId(), envelope.correlationId(), envelope.eventId());
+      try {
+        fulfillmentAssignmentService.assign(
+            envelope.aggregateId(), envelope.correlationId(), envelope.eventId());
+      } catch (RuntimeException processingFailure) {
+        log.warn(
+            "processing failed for {} on order {}, errorClass={}",
+            envelope.eventType(),
+            envelope.aggregateId(),
+            processingFailure.getClass().getSimpleName());
+        metrics.recordProcessingFailure(
+            envelope.eventType(), processingFailure.getClass().getSimpleName());
+        throw processingFailure;
+      }
 
       inboxEventRepository.save(new InboxEvent(id, envelope.eventType(), envelope.aggregateId()));
       log.info("processed PaymentAuthorized for order {}", envelope.aggregateId());
     } finally {
       MDC.remove("correlationId");
       MDC.remove("eventId");
+      MDC.remove("aggregateId");
     }
   }
 
@@ -80,6 +97,7 @@ public class PaymentAuthorizedListener {
     // Deliberately does not log envelopeJson itself — failure metadata (event type, id) is safe
     // to log; a raw payload might not be, so it isn't logged wholesale.
     EventEnvelope envelope = objectMapper.readValue(envelopeJson, EventEnvelope.class);
+    metrics.recordDeadLettered(envelope.eventType());
     log.error(
         "event routed to dead-letter topic after exhausting retries: type={} eventId={} orderId={}",
         envelope.eventType(),

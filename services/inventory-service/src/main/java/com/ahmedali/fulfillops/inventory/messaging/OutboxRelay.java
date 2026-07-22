@@ -1,8 +1,12 @@
 package com.ahmedali.fulfillops.inventory.messaging;
 
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
+import io.micrometer.tracing.propagation.Propagator;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.slf4j.Logger;
@@ -30,6 +34,8 @@ public class OutboxRelay {
   private final OutboxEventRepository outboxEventRepository;
   private final KafkaTemplate<String, String> kafkaTemplate;
   private final ObjectMapper objectMapper;
+  private final Tracer tracer;
+  private final Propagator propagator;
   private final String topic;
   private final int batchSize;
   private final int maxAttempts;
@@ -40,6 +46,8 @@ public class OutboxRelay {
       OutboxEventRepository outboxEventRepository,
       KafkaTemplate<String, String> kafkaTemplate,
       ObjectMapper objectMapper,
+      Tracer tracer,
+      Propagator propagator,
       @Value("${app.messaging.topic}") String topic,
       @Value("${app.messaging.outbox-batch-size:50}") int batchSize,
       @Value("${app.messaging.outbox-max-attempts:5}") int maxAttempts,
@@ -48,6 +56,8 @@ public class OutboxRelay {
     this.outboxEventRepository = outboxEventRepository;
     this.kafkaTemplate = kafkaTemplate;
     this.objectMapper = objectMapper;
+    this.tracer = tracer;
+    this.propagator = propagator;
     this.topic = topic;
     this.batchSize = batchSize;
     this.maxAttempts = maxAttempts;
@@ -78,9 +88,22 @@ public class OutboxRelay {
         addHeader(record, "causationId", event.getCausationId().toString());
       }
 
-      // Blocks for the broker's acknowledgement before this method returns, so the row
-      // is only marked PUBLISHED once Kafka has actually confirmed the write.
-      kafkaTemplate.send(record).get();
+      // This method runs on the scheduler's own thread, disconnected from whatever request or
+      // Kafka-consume thread originally wrote this outbox row — without resuming that thread's
+      // trace here, every publish would start a brand new, disconnected trace instead of
+      // continuing the one the caller was already in.
+      Span resumedSpan = resumeSpan(event.getTraceContext());
+      if (resumedSpan == null) {
+        // Blocks for the broker's acknowledgement before this method returns, so the row
+        // is only marked PUBLISHED once Kafka has actually confirmed the write.
+        kafkaTemplate.send(record).get();
+      } else {
+        try (Tracer.SpanInScope scope = tracer.withSpan(resumedSpan)) {
+          kafkaTemplate.send(record).get();
+        } finally {
+          resumedSpan.end();
+        }
+      }
 
       outboxEventRepository.markPublished(event.getEventId(), Instant.now());
       log.info("published outbox event type={}", event.getEventType());
@@ -108,6 +131,22 @@ public class OutboxRelay {
             event.getProducer(),
             objectMapper.readTree(event.getPayload()));
     return objectMapper.writeValueAsString(envelope);
+  }
+
+  /**
+   * Rebuilds the span OutboxEventWriter captured at write time, as a starting point to publish from
+   * — not the original span itself (that request or Kafka-consume thread is long gone), but a new
+   * one whose parent is that original context, so it shares the same trace ID. Returns null when
+   * the row was written with nothing being traced (see OutboxEventWriter.captureTraceContext).
+   */
+  @SuppressWarnings("unchecked")
+  private Span resumeSpan(String traceContextJson) {
+    if (traceContextJson == null) {
+      return null;
+    }
+    Map<String, String> carrier =
+        (Map<String, String>) objectMapper.readValue(traceContextJson, Map.class);
+    return propagator.extract(carrier, Map::get).name("outbox-relay-publish").start();
   }
 
   private int backoffSeconds(int attemptsSoFar) {

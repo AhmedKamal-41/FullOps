@@ -7,6 +7,7 @@ import com.ahmedali.fulfillops.fulfillment.domain.FulfillmentStatusHistory;
 import com.ahmedali.fulfillops.fulfillment.domain.FulfillmentStatusHistoryRepository;
 import com.ahmedali.fulfillops.fulfillment.domain.FulfillmentStatusTransitions;
 import com.ahmedali.fulfillops.fulfillment.messaging.OutboxEventWriter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -37,14 +38,17 @@ public class FulfillmentTransition {
   private final FulfillmentRepository fulfillmentRepository;
   private final FulfillmentStatusHistoryRepository statusHistoryRepository;
   private final OutboxEventWriter outboxEventWriter;
+  private final MeterRegistry meterRegistry;
 
   public FulfillmentTransition(
       FulfillmentRepository fulfillmentRepository,
       FulfillmentStatusHistoryRepository statusHistoryRepository,
-      OutboxEventWriter outboxEventWriter) {
+      OutboxEventWriter outboxEventWriter,
+      MeterRegistry meterRegistry) {
     this.fulfillmentRepository = fulfillmentRepository;
     this.statusHistoryRepository = statusHistoryRepository;
     this.outboxEventWriter = outboxEventWriter;
+    this.meterRegistry = meterRegistry;
   }
 
   @Transactional
@@ -52,8 +56,11 @@ public class FulfillmentTransition {
     Fulfillment fulfillment = load(fulfillmentId);
     requireCurrentVersion(fulfillment, expectedVersion);
 
+    FulfillmentStatus previousStatus = fulfillment.getStatus();
     fulfillment.claim(actorId);
-    return fulfillmentRepository.save(fulfillment);
+    Fulfillment saved = fulfillmentRepository.save(fulfillment);
+    recordTransition(previousStatus, saved.getStatus());
+    return saved;
   }
 
   @Transactional
@@ -87,6 +94,7 @@ public class FulfillmentTransition {
         correlationId,
         null,
         new AdvancedPayload(fulfillmentId, previousStatus.name(), newStatus.name()));
+    recordTransition(previousStatus, newStatus);
 
     return fulfillment;
   }
@@ -181,8 +189,20 @@ public class FulfillmentTransition {
             FulfillmentStatus.CANCELLED.name(),
             reasonCode,
             reasonDetail));
+    recordTransition(previousStatus, FulfillmentStatus.CANCELLED);
 
     return fulfillment;
+  }
+
+  private void recordTransition(FulfillmentStatus fromStatus, FulfillmentStatus toStatus) {
+    meterRegistry
+        .counter(
+            "fulfillment.stage.transition",
+            "fromStage",
+            fromStatus.name(),
+            "toStage",
+            toStatus.name())
+        .increment();
   }
 
   private Fulfillment load(UUID fulfillmentId) {

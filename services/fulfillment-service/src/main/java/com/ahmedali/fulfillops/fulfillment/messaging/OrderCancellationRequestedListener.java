@@ -31,6 +31,7 @@ public class OrderCancellationRequestedListener {
   private final InboxEventRepository inboxEventRepository;
   private final FulfillmentTransition fulfillmentTransition;
   private final DeadLetterEventRecorder deadLetterEventRecorder;
+  private final KafkaListenerMetrics metrics;
   private final ObjectMapper objectMapper;
   private final String topic;
 
@@ -38,11 +39,13 @@ public class OrderCancellationRequestedListener {
       InboxEventRepository inboxEventRepository,
       FulfillmentTransition fulfillmentTransition,
       DeadLetterEventRecorder deadLetterEventRecorder,
+      KafkaListenerMetrics metrics,
       ObjectMapper objectMapper,
       @Value("${app.messaging.order-events-topic}") String topic) {
     this.inboxEventRepository = inboxEventRepository;
     this.fulfillmentTransition = fulfillmentTransition;
     this.deadLetterEventRecorder = deadLetterEventRecorder;
+    this.metrics = metrics;
     this.objectMapper = objectMapper;
     this.topic = topic;
   }
@@ -64,24 +67,38 @@ public class OrderCancellationRequestedListener {
 
     MDC.put("correlationId", envelope.correlationId().toString());
     MDC.put("eventId", envelope.eventId().toString());
+    MDC.put("aggregateId", envelope.aggregateId().toString());
     try {
       InboxEventId id = new InboxEventId(envelope.eventId(), CONSUMER_NAME);
       if (inboxEventRepository.existsById(id)) {
         log.info(
             "duplicate delivery of OrderCancellationRequested for order {}, already processed, skipping",
             envelope.aggregateId());
+        metrics.recordDuplicate(envelope.eventType());
         return;
       }
 
-      String reasonDetail = optionalText(envelope.payload(), "reasonDetail");
-      fulfillmentTransition.cancelForOrder(
-          envelope.aggregateId(), reasonDetail, envelope.correlationId());
+      try {
+        String reasonDetail = optionalText(envelope.payload(), "reasonDetail");
+        fulfillmentTransition.cancelForOrder(
+            envelope.aggregateId(), reasonDetail, envelope.correlationId());
+      } catch (RuntimeException processingFailure) {
+        log.warn(
+            "processing failed for {} on order {}, errorClass={}",
+            envelope.eventType(),
+            envelope.aggregateId(),
+            processingFailure.getClass().getSimpleName());
+        metrics.recordProcessingFailure(
+            envelope.eventType(), processingFailure.getClass().getSimpleName());
+        throw processingFailure;
+      }
 
       inboxEventRepository.save(new InboxEvent(id, envelope.eventType(), envelope.aggregateId()));
       log.info("processed OrderCancellationRequested for order {}", envelope.aggregateId());
     } finally {
       MDC.remove("correlationId");
       MDC.remove("eventId");
+      MDC.remove("aggregateId");
     }
   }
 
@@ -94,6 +111,7 @@ public class OrderCancellationRequestedListener {
   public void onDlt(String envelopeJson) {
     EventEnvelope envelope = objectMapper.readValue(envelopeJson, EventEnvelope.class);
     deadLetterEventRecorder.record(envelope, CONSUMER_NAME, topic, envelopeJson);
+    metrics.recordDeadLettered(envelope.eventType());
     log.error(
         "event routed to dead-letter topic after exhausting retries: type={} eventId={} orderId={}",
         envelope.eventType(),

@@ -1,6 +1,7 @@
 package com.ahmedali.fulfillops.inventory.service;
 
 import com.ahmedali.fulfillops.inventory.cache.InventoryAvailabilityCache;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -21,14 +22,17 @@ public class ReservationService {
 
   private final ReservationTransaction reservationTransaction;
   private final InventoryAvailabilityCache availabilityCache;
+  private final MeterRegistry meterRegistry;
   private final int maxAttempts;
 
   public ReservationService(
       ReservationTransaction reservationTransaction,
       InventoryAvailabilityCache availabilityCache,
+      MeterRegistry meterRegistry,
       @Value("${app.inventory.reservation.max-attempts}") int maxAttempts) {
     this.reservationTransaction = reservationTransaction;
     this.availabilityCache = availabilityCache;
+    this.meterRegistry = meterRegistry;
     this.maxAttempts = maxAttempts;
   }
 
@@ -46,6 +50,7 @@ public class ReservationService {
             orderId,
             attempt,
             maxAttempts);
+        meterRegistry.counter("inventory.reservation.conflict").increment();
         if (attempt == maxAttempts) {
           throw new StockConcurrencyException("order " + orderId, maxAttempts, conflict);
         }

@@ -32,6 +32,7 @@ public class PaymentDeclinedListener {
   private final ReservationReleaseService reservationReleaseService;
   private final InventoryReservationRepository reservationRepository;
   private final DeadLetterEventRecorder deadLetterEventRecorder;
+  private final KafkaListenerMetrics metrics;
   private final ObjectMapper objectMapper;
   private final String topic;
 
@@ -40,12 +41,14 @@ public class PaymentDeclinedListener {
       ReservationReleaseService reservationReleaseService,
       InventoryReservationRepository reservationRepository,
       DeadLetterEventRecorder deadLetterEventRecorder,
+      KafkaListenerMetrics metrics,
       ObjectMapper objectMapper,
       @Value("${app.messaging.payment-events-topic}") String topic) {
     this.inboxEventRepository = inboxEventRepository;
     this.reservationReleaseService = reservationReleaseService;
     this.reservationRepository = reservationRepository;
     this.deadLetterEventRecorder = deadLetterEventRecorder;
+    this.metrics = metrics;
     this.objectMapper = objectMapper;
     this.topic = topic;
   }
@@ -67,23 +70,37 @@ public class PaymentDeclinedListener {
 
     MDC.put("correlationId", envelope.correlationId().toString());
     MDC.put("eventId", envelope.eventId().toString());
+    MDC.put("aggregateId", envelope.aggregateId().toString());
     try {
       InboxEventId id = new InboxEventId(envelope.eventId(), CONSUMER_NAME);
       if (inboxEventRepository.existsById(id)) {
         log.info(
             "duplicate delivery of PaymentDeclined for order {}, already processed, skipping",
             envelope.aggregateId());
+        metrics.recordDuplicate(envelope.eventType());
         return;
       }
 
-      if (reservationRepository.findByOrderId(envelope.aggregateId()).isPresent()) {
-        reservationReleaseService.release(
+      try {
+        if (reservationRepository.findByOrderId(envelope.aggregateId()).isPresent()) {
+          reservationReleaseService.release(
+              envelope.aggregateId(),
+              ReleaseReasonCode.PAYMENT_DECLINED,
+              envelope.correlationId(),
+              envelope.eventId());
+        } else {
+          log.info(
+              "no reservation exists for order {}, nothing to release", envelope.aggregateId());
+        }
+      } catch (RuntimeException processingFailure) {
+        log.warn(
+            "processing failed for {} on order {}, errorClass={}",
+            envelope.eventType(),
             envelope.aggregateId(),
-            ReleaseReasonCode.PAYMENT_DECLINED,
-            envelope.correlationId(),
-            envelope.eventId());
-      } else {
-        log.info("no reservation exists for order {}, nothing to release", envelope.aggregateId());
+            processingFailure.getClass().getSimpleName());
+        metrics.recordProcessingFailure(
+            envelope.eventType(), processingFailure.getClass().getSimpleName());
+        throw processingFailure;
       }
 
       inboxEventRepository.save(new InboxEvent(id, envelope.eventType(), envelope.aggregateId()));
@@ -91,6 +108,7 @@ public class PaymentDeclinedListener {
     } finally {
       MDC.remove("correlationId");
       MDC.remove("eventId");
+      MDC.remove("aggregateId");
     }
   }
 
@@ -98,6 +116,7 @@ public class PaymentDeclinedListener {
   public void onDlt(String envelopeJson) {
     EventEnvelope envelope = objectMapper.readValue(envelopeJson, EventEnvelope.class);
     deadLetterEventRecorder.record(envelope, CONSUMER_NAME, topic, envelopeJson);
+    metrics.recordDeadLettered(envelope.eventType());
     log.error(
         "event routed to dead-letter topic after exhausting retries: type={} eventId={} orderId={}",
         envelope.eventType(),

@@ -6,6 +6,8 @@ import com.ahmedali.fulfillops.order.domain.OrderStatus;
 import com.ahmedali.fulfillops.order.domain.OrderStatusHistory;
 import com.ahmedali.fulfillops.order.domain.OrderStatusHistoryRepository;
 import com.ahmedali.fulfillops.order.domain.OrderStatusTransitions;
+import io.micrometer.core.instrument.MeterRegistry;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -42,16 +44,19 @@ public class OrderLifecycleTransaction {
   private final OrderStatusHistoryRepository statusHistoryRepository;
   private final OrderCancellationTransaction cancellationTransaction;
   private final OperationsProjectionUpdater projectionUpdater;
+  private final MeterRegistry meterRegistry;
 
   public OrderLifecycleTransaction(
       OrderRepository orderRepository,
       OrderStatusHistoryRepository statusHistoryRepository,
       OrderCancellationTransaction cancellationTransaction,
-      OperationsProjectionUpdater projectionUpdater) {
+      OperationsProjectionUpdater projectionUpdater,
+      MeterRegistry meterRegistry) {
     this.orderRepository = orderRepository;
     this.statusHistoryRepository = statusHistoryRepository;
     this.cancellationTransaction = cancellationTransaction;
     this.projectionUpdater = projectionUpdater;
+    this.meterRegistry = meterRegistry;
   }
 
   @Transactional
@@ -104,11 +109,17 @@ public class OrderLifecycleTransaction {
       return;
     }
 
+    OrderStatus previousStatus = order.getStatus();
+    Instant enteredPreviousStatusAt = order.getUpdatedAt();
     Instant now = Instant.now();
     order.updateStatus(target);
     orderRepository.save(order);
     statusHistoryRepository.save(new OrderStatusHistory(order.getOrderId(), target, null, now));
     projectionUpdater.advanceStage(order.getOrderId(), target, null, now);
+
+    meterRegistry
+        .timer("order.stage.duration", "fromStage", previousStatus.name(), "toStage", target.name())
+        .record(Duration.between(enteredPreviousStatusAt, now));
   }
 
   private static boolean isEarlierInHappyPathThan(OrderStatus current, OrderStatus target) {

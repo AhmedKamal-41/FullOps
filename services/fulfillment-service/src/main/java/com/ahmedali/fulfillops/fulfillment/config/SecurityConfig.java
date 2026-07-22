@@ -50,7 +50,8 @@ public class SecurityConfig {
     http.authorizeHttpRequests(
             authorize ->
                 authorize
-                    .requestMatchers("/actuator/health/**", "/actuator/info")
+                    .requestMatchers(
+                        "/actuator/health/**", "/actuator/info", "/actuator/prometheus")
                     .permitAll()
                     .requestMatchers("/api/v1/fulfillments/**")
                     .hasAnyRole("OPERATOR", "ADMIN")

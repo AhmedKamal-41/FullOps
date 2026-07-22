@@ -1,0 +1,13 @@
+# Points Grafana at the version-controlled dashboard JSON files in this same folder so they load
+# automatically on every `make infra-up` — nobody has to click "import" by hand.
+apiVersion: 1
+
+providers:
+  - name: fulfillops
+    orgId: 1
+    folder: FulfillOps
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards/json

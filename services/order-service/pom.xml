@@ -51,6 +51,17 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
+            <!-- Exposes /actuator/prometheus for the Compose Prometheus instance to scrape. -->
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <dependency>
+            <!-- Boot's own starter: OpenTelemetry SDK + the Micrometer Observation bridge (HTTP,
+                 Kafka) + the OTLP exporter that ships spans to the Compose Tempo instance. -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-opentelemetry</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>

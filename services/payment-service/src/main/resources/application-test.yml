@@ -18,6 +18,9 @@ management:
   endpoint:
     health:
       show-details: always
+  # No Tempo running under Testcontainers — exporting would just retry against a closed port.
+  tracing:
+    enabled: false
 
 # Fast, small-sample resilience settings so a test can trip and recover the
 # circuit breaker in milliseconds instead of the production-realistic 30

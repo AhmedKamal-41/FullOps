@@ -105,6 +105,69 @@ services:
       retries: 15
       start_period: 60s
 
+  # --- Observability (Phase 11) ---------------------------------------------------------
+  # All four app services still run on the host (make run-order etc.), not in this Compose
+  # network — see docs/runbooks/local-infrastructure.md. Prometheus reaches them via
+  # host.docker.internal; Tempo and Grafana are reached by the host services/browser via their
+  # published ports below.
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: fulfillops-prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: fulfillops-tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200" # Tempo query API (used by Grafana's Tempo datasource)
+      - "4317:4317" # OTLP gRPC — not used by the app services (they use HTTP/4318) but published
+                    # for any OTLP CLI tooling used during failure demos.
+      - "4318:4318" # OTLP HTTP — this is what management.otlp.tracing.endpoint points at.
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: fulfillops-grafana
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      # Local demo only — see docs/runbooks/local-infrastructure.md. Never a real credential.
+      GF_SECURITY_ADMIN_PASSWORD: "fulfillops-local-only-pw"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - tempo
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
 volumes:
   postgres-data:
   redis-data:
+  prometheus-data:
+  tempo-data:
+  grafana-data:

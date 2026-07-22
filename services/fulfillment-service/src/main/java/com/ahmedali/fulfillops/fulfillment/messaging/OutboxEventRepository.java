@@ -2,6 +2,7 @@ package com.ahmedali.fulfillops.fulfillment.messaging;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -10,6 +11,14 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> {
+
+  // Backlog = not yet published (PENDING still waiting its turn, or FAILED after exhausting
+  // OutboxRelay's own retry budget) — see OutboxBacklogMetrics. state is plain String on
+  // OutboxEvent (not @Enumerated), so these bind a String, not OutboxState directly —
+  // OutboxState.PUBLISHED.name() at the call site.
+  long countByStateNot(String state);
+
+  Optional<OutboxEvent> findFirstByStateNotOrderByCreatedAtAsc(String state);
 
   /**
    * Claims a bounded batch of due rows for this poll cycle. FOR UPDATE SKIP LOCKED lets more than

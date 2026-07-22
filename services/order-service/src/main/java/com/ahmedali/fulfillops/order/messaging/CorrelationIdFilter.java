@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.slf4j.MDC;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -28,6 +29,17 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
   public static final String MDC_KEY = "correlationId";
   public static final String REQUEST_ATTRIBUTE = "correlationId";
 
+  // Environment label for structured logs (e.g. "local", "test") — same value on every log
+  // line this process emits, so it's resolved once at startup rather than per request.
+  private static final String ENVIRONMENT_MDC_KEY = "environment";
+
+  private final String environmentLabel;
+
+  public CorrelationIdFilter(Environment environment) {
+    String[] activeProfiles = environment.getActiveProfiles();
+    this.environmentLabel = activeProfiles.length > 0 ? activeProfiles[0] : "default";
+  }
+
   @Override
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -35,12 +47,14 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
     UUID correlationId = parseOrGenerate(request.getHeader(HEADER_NAME));
 
     MDC.put(MDC_KEY, correlationId.toString());
+    MDC.put(ENVIRONMENT_MDC_KEY, environmentLabel);
     request.setAttribute(REQUEST_ATTRIBUTE, correlationId);
     response.setHeader(HEADER_NAME, correlationId.toString());
     try {
       filterChain.doFilter(request, response);
     } finally {
       MDC.remove(MDC_KEY);
+      MDC.remove(ENVIRONMENT_MDC_KEY);
     }
   }
 
