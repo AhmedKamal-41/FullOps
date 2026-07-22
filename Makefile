@@ -4,10 +4,13 @@
 
 COMPOSE = docker compose --env-file .env -f infra/compose/docker-compose.yml
 
-.PHONY: verify format format-check test build docker-build clean \
+DEMO_COMPOSE = $(COMPOSE) -f infra/compose/docker-compose.apps.yml --profile demo
+
+.PHONY: verify verify-all audit format format-check test build docker-build clean \
         run-order run-inventory run-payment run-fulfillment \
         infra-up infra-down infra-status logs smoke smoke-inventory smoke-payment smoke-fulfillment \
-        smoke-cancellation smoke-operations
+        smoke-cancellation smoke-operations \
+        demo-up demo-down demo-logs kind-up kind-smoke kind-down
 
 verify: ## Full build: format check, compile, unit tests, coverage report.
 	./mvnw -B clean verify
@@ -28,6 +31,12 @@ docker-build: ## Build all four service images locally (no push).
 	docker build -f services/inventory-service/Dockerfile -t fulfillops/inventory-service .
 	docker build -f services/payment-service/Dockerfile -t fulfillops/payment-service .
 	docker build -f services/fulfillment-service/Dockerfile -t fulfillops/fulfillment-service .
+
+verify-all: ## Run every feasible local check (backend, frontend, kustomize, terraform, compose).
+	./scripts/verify-all.sh
+
+audit: ## Audit the repo: required docs/screenshots, broken links, secrets, README commands, evidence.
+	./scripts/audit-repo.sh
 
 # The run-* targets source .env into the shell environment so Spring Boot's
 # ${ORDER_DB_PASSWORD}-style placeholders resolve, matching what infra-up expects
@@ -78,3 +87,25 @@ smoke-cancellation: ## Place an order, request cancellation as the customer, and
 
 smoke-operations: ## Exercise the ops API end to end: KPI overview, work queue, backlog, timeline, and a projection rebuild.
 	./scripts/smoke-operations.sh
+
+# --- Production-like demo: the complete stack, services in containers -------------------
+demo-up: ## Build and start the complete demo (infra + observability + all four services in containers).
+	@test -f .env || (echo "Missing .env — run: cp .env.example .env" >&2 && exit 1)
+	$(DEMO_COMPOSE) up -d --build
+	./scripts/wait-for-infra-healthy.sh
+
+demo-down: ## Stop the demo stack. Does NOT delete volumes — pass DOWN_ARGS=-v to also wipe them.
+	$(DEMO_COMPOSE) down $(DOWN_ARGS)
+
+demo-logs: ## Follow the four service containers' logs.
+	$(DEMO_COMPOSE) logs -f order-service inventory-service payment-service fulfillment-service
+
+# --- Local Kubernetes (kind) ------------------------------------------------------------
+kind-up: ## Create the kind cluster, build/load images, and deploy (leaves the cluster running).
+	./scripts/kind-deploy.sh up
+
+kind-smoke: ## Smoke-test a running kind deployment.
+	./scripts/kind-deploy.sh smoke
+
+kind-down: ## Delete the fulfillops kind cluster (only that cluster).
+	./scripts/kind-deploy.sh down

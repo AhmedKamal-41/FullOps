@@ -34,6 +34,32 @@
         <maven-failsafe-plugin.version>3.5.6</maven-failsafe-plugin.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <spotless-maven-plugin.version>3.8.0</spotless-maven-plugin.version>
+        <!-- Package-boundary and forbidden-cross-service-dependency tests (Phase 12). -->
+        <archunit-junit5.version>1.3.0</archunit-junit5.version>
+        <!--
+            Minimum line coverage each service must keep on its business code — the
+            service, domain, messaging, and web (controller) layers. Generated
+            configuration and DTO boilerplate are excluded from the count below, so
+            this number reflects logic that is actually worth testing, not padding.
+
+            Set as a deliberately conservative floor: this codebase is exercised largely
+            through Testcontainers integration tests, and the sandbox this phase was built
+            in could not run that suite reliably, so a clean unit+integration coverage
+            figure was NOT measured locally (see docs/PHASE_STATUS.md Phase 12). CI's
+            integration job produces the real number; ratchet this up to sit just under it
+            once that is known. Unit tests alone cover 16–26% here, so the gate is set well
+            above that floor but below the full figure the integration tests are expected
+            to reach.
+        -->
+        <coverage.business.line.minimum>0.60</coverage.business.line.minimum>
+        <!--
+            Default the JaCoCo agent argument lines to empty so Surefire/Failsafe still
+            launch cleanly in modules where coverage is skipped (e.g. contracts). The
+            prepare-agent executions below override these with the real agent argument
+            when coverage is active.
+        -->
+        <surefireArgLine></surefireArgLine>
+        <failsafeArgLine></failsafeArgLine>
     </properties>
 
     <build>
@@ -74,6 +100,8 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
+                    <!-- Carries the JaCoCo unit-coverage agent (empty when coverage is off). -->
+                    <argLine>${surefireArgLine}</argLine>
                     <includes>
                         <include>**/*Test.java</include>
                         <include>**/*Tests.java</include>
@@ -94,6 +122,8 @@
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>${maven-failsafe-plugin.version}</version>
                 <configuration>
+                    <!-- Carries the JaCoCo integration-coverage agent (empty when off). -->
+                    <argLine>${failsafeArgLine}</argLine>
                     <includes>
                         <include>**/*IT.java</include>
                     </includes>
@@ -109,11 +139,14 @@
             </plugin>
 
             <!--
-                Report generation only. Coverage *thresholds* are intentionally not
-                enforced yet: with only application entry points and context-load tests
-                in place, a numeric gate here would be arbitrary rather than meaningful.
-                Real thresholds get added once services have business logic worth
-                measuring.
+                Coverage is now gated (Phase 12). The gate measures business code only:
+                the excludes below drop the Spring Boot entry point, wiring/config classes,
+                and DTO request/response records, none of which carry logic worth a coverage
+                target and all of which would only invite meaningless tests written to game
+                the number. What remains — the service, domain, messaging, and web layers —
+                must hold the line coverage in ${coverage.business.line.minimum}. The check
+                runs at verify, after both the unit (Surefire) and integration (Failsafe)
+                tests have contributed to the same execution-data file.
             -->
             <plugin>
                 <groupId>org.jacoco</groupId>
@@ -122,21 +155,104 @@
                 <configuration>
                     <excludes>
                         <exclude>**/*Application.class</exclude>
+                        <exclude>**/config/**</exclude>
+                        <exclude>**/web/dto/**</exclude>
                     </excludes>
                 </configuration>
                 <executions>
+                    <!--
+                        Two agents write two execution-data files — one for the unit tests
+                        (Surefire) and one for the integration tests (Failsafe) — which are then
+                        merged so the report and the gate reflect BOTH. Without the integration
+                        agent, most of this codebase's coverage (it is exercised largely through
+                        Testcontainers integration tests) would be invisible to the gate.
+                    -->
                     <execution>
-                        <id>prepare-agent</id>
+                        <id>prepare-agent-unit</id>
                         <goals>
                             <goal>prepare-agent</goal>
                         </goals>
+                        <configuration>
+                            <propertyName>surefireArgLine</propertyName>
+                        </configuration>
                     </execution>
                     <execution>
-                        <id>report</id>
+                        <id>prepare-agent-integration</id>
+                        <goals>
+                            <goal>prepare-agent-integration</goal>
+                        </goals>
+                        <configuration>
+                            <propertyName>failsafeArgLine</propertyName>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <!-- Combine jacoco.exec (unit) and jacoco-it.exec (integration). -->
+                        <id>merge-exec</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>merge</goal>
+                        </goals>
+                        <configuration>
+                            <fileSets>
+                                <fileSet>
+                                    <directory>${project.build.directory}</directory>
+                                    <includes>
+                                        <include>jacoco.exec</include>
+                                        <include>jacoco-it.exec</include>
+                                    </includes>
+                                </fileSet>
+                            </fileSets>
+                            <destFile>${project.build.directory}/jacoco-merged.exec</destFile>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <!--
+                            Unit-only coverage report, available right after `mvn test` for quick
+                            local feedback (the integration tests have not run yet at this phase).
+                        -->
+                        <id>report-unit</id>
                         <phase>test</phase>
                         <goals>
                             <goal>report</goal>
                         </goals>
+                    </execution>
+                    <execution>
+                        <!--
+                            Full coverage report (unit + integration) from the merged data. This
+                            is what a clean `verify` and CI publish, and it matches what the gate
+                            below measures.
+                        -->
+                        <id>report-full</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                        <configuration>
+                            <dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+                            <outputDirectory>${project.build.directory}/site/jacoco-merged</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>check-business-coverage</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${coverage.business.line.minimum}</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

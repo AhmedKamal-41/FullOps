@@ -1,0 +1,146 @@
+# Production-like "complete demo" overlay: the four services running as containers on the
+# same network as the infrastructure, under the `demo` profile. Use it TOGETHER with the
+# base infrastructure compose file:
+#
+#   docker compose --env-file .env \
+#     -f infra/compose/docker-compose.yml \
+#     -f infra/compose/docker-compose.apps.yml \
+#     --profile demo up -d --build
+#
+# (or just `make demo-up`). This is the alternative to running the services on the host
+# with `make run-*`. The services run under the production-like Spring profile and reach
+# PostgreSQL, Kafka, and Redis by their in-network names.
+#
+# OIDC issuer: the services and any host browser must agree on the token issuer. Both use
+# http://host.docker.internal:8080 — it resolves to the host from inside a container and is
+# also resolvable on the host under Docker Desktop, so the `iss` claim is identical whether
+# a token is minted for an in-network service or for a browser login to the console. That is
+# why this overlay overrides Keycloak's KC_HOSTNAME (only when the overlay is in use; the
+# base file's localhost value is untouched for the host `make run-*` flow).
+
+services:
+  keycloak:
+    environment:
+      KC_HOSTNAME: "http://host.docker.internal:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  order-service:
+    profiles: ["demo"]
+    build:
+      context: ../..
+      dockerfile: services/order-service/Dockerfile
+    image: fulfillops/order-service:local
+    container_name: fulfillops-order-service
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      SPRING_PROFILES_ACTIVE: production-like
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      ORDER_DB_NAME: ${ORDER_DB_NAME}
+      ORDER_DB_USERNAME: ${ORDER_DB_USERNAME}
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      OIDC_ISSUER_URI: http://host.docker.internal:8080/realms/fulfillops
+      MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: http://tempo:4318/v1/traces
+    ports:
+      - "8081:8081"
+
+  inventory-service:
+    profiles: ["demo"]
+    build:
+      context: ../..
+      dockerfile: services/inventory-service/Dockerfile
+    image: fulfillops/inventory-service:local
+    container_name: fulfillops-inventory-service
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      SPRING_PROFILES_ACTIVE: production-like
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      INVENTORY_DB_NAME: ${INVENTORY_DB_NAME}
+      INVENTORY_DB_USERNAME: ${INVENTORY_DB_USERNAME}
+      INVENTORY_DB_PASSWORD: ${INVENTORY_DB_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      OIDC_ISSUER_URI: http://host.docker.internal:8080/realms/fulfillops
+      MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: http://tempo:4318/v1/traces
+    ports:
+      - "8082:8082"
+
+  payment-service:
+    profiles: ["demo"]
+    build:
+      context: ../..
+      dockerfile: services/payment-service/Dockerfile
+    image: fulfillops/payment-service:local
+    container_name: fulfillops-payment-service
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      SPRING_PROFILES_ACTIVE: production-like
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      PAYMENT_DB_NAME: ${PAYMENT_DB_NAME}
+      PAYMENT_DB_USERNAME: ${PAYMENT_DB_USERNAME}
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      OIDC_ISSUER_URI: http://host.docker.internal:8080/realms/fulfillops
+      MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: http://tempo:4318/v1/traces
+    ports:
+      - "8083:8083"
+
+  fulfillment-service:
+    profiles: ["demo"]
+    build:
+      context: ../..
+      dockerfile: services/fulfillment-service/Dockerfile
+    image: fulfillops/fulfillment-service:local
+    container_name: fulfillops-fulfillment-service
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      SPRING_PROFILES_ACTIVE: production-like
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      FULFILLMENT_DB_NAME: ${FULFILLMENT_DB_NAME}
+      FULFILLMENT_DB_USERNAME: ${FULFILLMENT_DB_USERNAME}
+      FULFILLMENT_DB_PASSWORD: ${FULFILLMENT_DB_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      OIDC_ISSUER_URI: http://host.docker.internal:8080/realms/fulfillops
+      MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: http://tempo:4318/v1/traces
+    ports:
+      - "8084:8084"

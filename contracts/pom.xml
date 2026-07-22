@@ -19,6 +19,13 @@
 
     <properties>
         <json-schema-validator.version>3.0.6</json-schema-validator.version>
+        <!--
+            This module carries no production classes (only JSON Schemas and the test that
+            validates the example fixtures against them), so the business-code coverage gate
+            inherited from the parent has nothing to measure here. Skipping JaCoCo keeps the
+            gate honest: it applies only where there is application logic to cover.
+        -->
+        <jacoco.skip>true</jacoco.skip>
     </properties>
 
     <dependencies>

@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Local kind overlay. The service images are built locally and loaded into the kind
+# node with `kind load docker-image` (see scripts/kind-deploy.sh), so they carry the
+# ":local" tag and must never be pulled from a registry.
+resources:
+  - ../../base
+
+images:
+  - name: fulfillops/order-service
+    newTag: local
+  - name: fulfillops/inventory-service
+    newTag: local
+  - name: fulfillops/payment-service
+    newTag: local
+  - name: fulfillops/fulfillment-service
+    newTag: local

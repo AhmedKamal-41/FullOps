@@ -1,0 +1,57 @@
+# Terraform quality checks for the OPTIONAL AWS reference architecture under
+# infra/terraform. These jobs format-check, validate, lint, and security-scan the
+# modules. They never run `terraform plan` against a real account and never run
+# `terraform apply` — nothing here provisions or costs anything. See
+# infra/terraform/README.md.
+
+name: Terraform checks
+
+on:
+  push:
+    branches: [main]
+    paths: ["infra/terraform/**", ".github/workflows/terraform.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["infra/terraform/**", ".github/workflows/terraform.yml"]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: infra/terraform
+
+jobs:
+  validate:
+    name: fmt, validate, tflint, and security scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+      - name: Format check
+        run: terraform fmt -check -recursive
+      # `-backend=false` means init does not touch the real remote state bucket; it only
+      # installs providers so `validate` can run. No credentials are needed and nothing
+      # is planned or applied.
+      - name: Validate every module and environment
+        run: |
+          for dir in $(find . -name '*.tf' -exec dirname {} \; | sort -u); do
+            echo "== validating $dir =="
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" validate
+          done
+      - name: Set up TFLint
+        uses: terraform-linters/setup-tflint@v4
+      - name: TFLint
+        run: tflint --recursive
+      - name: Trivy IaC security scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: infra/terraform
+          format: table
+          exit-code: "1"
+          severity: HIGH,CRITICAL

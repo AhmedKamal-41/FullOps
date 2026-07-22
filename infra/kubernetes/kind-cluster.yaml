@@ -1,0 +1,9 @@
+# kind cluster definition used by scripts/kind-deploy.sh. A single node is enough for
+# this demo. host.docker.internal is made resolvable inside the node so the pods can
+# reach the Docker Compose infrastructure (PostgreSQL, Kafka, Redis, Keycloak) running
+# on the host.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: fulfillops
+nodes:
+  - role: control-plane

@@ -1,0 +1,96 @@
+# Network policies for the four backend services.
+#
+# Enforcement note: kind's default CNI (kindnet) does NOT enforce NetworkPolicy, so on a
+# plain kind cluster these are inert documentation of intent. They ARE enforced on a
+# cluster running Calico, Cilium, or another policy-capable CNI. They are included so the
+# intended posture travels with the manifests. See infra/kubernetes/README.md.
+#
+# Kubelet-originated traffic (liveness/readiness probes) and `kubectl port-forward` come
+# from the node, not from a pod, so they are not subject to these policies — the smoke
+# test still works with ingress denied.
+
+# 1. Default deny: no ingress and no egress for backend pods unless a later policy allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-default-deny
+  namespace: fulfillops
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# 2. Allow DNS resolution (needed to resolve host.docker.internal and cluster names).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-allow-dns
+  namespace: fulfillops
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+# 3. Allow egress to the external stateful infrastructure, restricted to its ports.
+#    (PostgreSQL, Kafka, Redis, Keycloak — all off-cluster for this portfolio.)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-allow-infra-egress
+  namespace: fulfillops
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - port: 5432
+          protocol: TCP
+        - port: 9092
+          protocol: TCP
+        - port: 6379
+          protocol: TCP
+        - port: 8080
+          protocol: TCP
+---
+# 4. Allow HTTP ingress to the services from within the namespace (e.g. a smoke-test or
+#    console pod). Backend services talk to each other over Kafka, not HTTP, so no
+#    service-to-service HTTP rule is needed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-allow-namespace-http-ingress
+  namespace: fulfillops
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: fulfillops
+      ports:
+        - port: 8081
+          protocol: TCP
+        - port: 8082
+          protocol: TCP
+        - port: 8083
+          protocol: TCP
+        - port: 8084
+          protocol: TCP

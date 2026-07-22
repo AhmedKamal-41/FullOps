@@ -1,0 +1,33 @@
+# Non-secret configuration shared by all four services. The stateful infrastructure
+# (PostgreSQL, Kafka, Redis, Keycloak) lives OUTSIDE the cluster for this portfolio —
+# see infra/kubernetes/README.md for that trade-off — so these are the addresses at
+# which the pods reach it. The values here are placeholders wired for a local kind
+# cluster reaching host-run infrastructure; override them per environment.
+#
+# Passwords are NOT here — they come from the fulfillops-secrets Secret (see
+# secret.example.yaml).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fulfillops-shared
+  namespace: fulfillops
+data:
+  SPRING_PROFILES_ACTIVE: production-like
+
+  # host.docker.internal resolves to the machine hosting the kind cluster, where the
+  # Docker Compose infrastructure is running (make infra-up).
+  DB_HOST: host.docker.internal
+  DB_PORT: "5432"
+  KAFKA_BOOTSTRAP_SERVERS: host.docker.internal:9092
+  REDIS_HOST: host.docker.internal
+  REDIS_PORT: "6379"
+  OIDC_ISSUER_URI: http://host.docker.internal:8080/realms/fulfillops
+
+  ORDER_DB_NAME: order_db
+  ORDER_DB_USERNAME: order_service
+  INVENTORY_DB_NAME: inventory_db
+  INVENTORY_DB_USERNAME: inventory_service
+  PAYMENT_DB_NAME: payment_db
+  PAYMENT_DB_USERNAME: payment_service
+  FULFILLMENT_DB_NAME: fulfillment_db
+  FULFILLMENT_DB_USERNAME: fulfillment_service

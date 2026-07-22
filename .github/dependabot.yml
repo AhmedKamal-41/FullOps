@@ -1,0 +1,28 @@
+# Keeps dependencies and pinned action versions current. The github-actions updates
+# are what let CI pin third-party actions to a specific version (and, when SHA-pinned,
+# keep those SHAs refreshed) without a human tracking upstream releases by hand.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: maven
+    directory: "/"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: npm
+    directory: "/apps/ops-console"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directories:
+      - "/services/order-service"
+      - "/services/inventory-service"
+      - "/services/payment-service"
+      - "/services/fulfillment-service"
+    schedule:
+      interval: weekly

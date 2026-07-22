@@ -1,0 +1,59 @@
+# CodeQL static analysis for the Java services and the TypeScript console.
+#
+# Runs on pushes and PRs to main, plus a weekly schedule so newly published queries
+# catch issues in code that has not changed recently.
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # Mondays, 06:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: java-kotlin
+            build: maven
+          - language: javascript-typescript
+            build: none
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        if: matrix.build == 'maven'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      # The Java analysis needs the code compiled. Autobuild is skipped in favour of an
+      # explicit, test-free package so the build is predictable and fast.
+      - name: Build Java
+        if: matrix.build == 'maven'
+        run: ./mvnw -B -DskipTests package
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

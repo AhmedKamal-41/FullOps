@@ -146,6 +146,14 @@
             <version>${json-schema-validator.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <!-- Enforces package boundaries and this service's isolation from the other
+                 three (ArchitectureTest). Version is managed in the root pom. -->
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>${archunit-junit5.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
