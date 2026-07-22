@@ -2,130 +2,267 @@
 
 **Event-driven order fulfillment and reliability platform.**
 
-> **Status: Phase 11 complete — all four services are instrumented with Prometheus metrics and OpenTelemetry traces, with Grafana dashboards, Prometheus alert rules, six failure-scenario scripts, and k6 load tests on top of the operations console from Phase 10.** A single order can be followed as one real distributed trace across all four services and every Kafka boundary between them — verified directly against a running Tempo instance, not just asserted from the tracing config. The four services build, migrate their own databases, enforce JWT authentication against a real Keycloak realm, and publish/consume real Kafka events through a working transactional outbox and idempotent inbox, with JSON-Schema-validated contracts for every event. Order Service places orders idempotently (`POST /api/v1/orders`), consumes lifecycle events from all three other services to track an order end to end, and exposes cancellation (`POST /api/v1/orders/{orderId}/cancellation-requests`). Inventory Service reserves and releases stock with a row-locking concurrency strategy proven safe under real concurrent contention, and emits a low-stock signal event when a SKU crosses a configured threshold. Payment Service authorizes, declines, and refunds fictional payments with retry and circuit-breaker resilience, and reports how many transient failures preceded a final outcome. Fulfillment Service runs the warehouse workflow (`ASSIGNED → PICKING → PACKED → DISPATCHED → DELIVERED`) with operator HTTP controls and reacts to cancellation before dispatch. A failure anywhere — inventory rejection, a declined payment, a cancellation, a compensation that itself keeps failing — is compensated by choreography (no central saga database or orchestrator) and, when it cannot be safely auto-resolved, surfaces as a `REQUIRES_REVIEW` order plus an operations incident with a full acknowledge/assign/resolve lifecycle. Order Service maintains a rebuildable operations projection (`/api/v1/ops/**`, OPERATOR/ADMIN-only) exposing KPI overview/time-series/stage-duration reads, an SLA-breach-aware backlog and stuck-orders view, a searchable/filterable/CSV-exportable work queue, and per-order event timelines — every KPI formula is documented exactly in [`docs/KPI_DICTIONARY.md`](docs/KPI_DICTIONARY.md), never a fabricated number. The ops console (real Authorization Code + PKCE login against Keycloak, tokens never in `localStorage`) puts all of this in front of an operator across six routes — Overview, Work Queue, Order Detail, Incidents, Inventory Risk, Fulfillment Board — with a clearly labeled, network-failure-only demo-data fallback and no other path for mock data to reach the UI. Every service has a bounded-retry-then-dead-letter path per Kafka consumer and an ADMIN-only, audited replay endpoint for it; Order Service also runs a single-instance-guarded reconciliation job that finds stuck orders and safely nudges or escalates them. It never accepts, logs, or persists a card number, bank detail, or SSN. Every feature described below that isn't running code is explicitly labeled **(planned)**. See [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) for what is actually done and how it was verified.
+> **Status — Phase 13 (documentation & evidence).** Phases 0–12 are complete: four
+> independently deployable Spring Boot (Java 21) services coordinate through versioned Kafka
+> events with a transactional outbox and idempotent inbox; a React/TypeScript operations
+> console; Prometheus metrics, OpenTelemetry tracing, Grafana dashboards, alert rules, failure
+> scenarios, and k6 load tests; and CI/CD with quality gates plus Kubernetes and (optional,
+> never-applied) AWS Terraform packaging. Every capability described below is running code with
+> tests; anything not yet built is labeled **(planned)**. What was actually run versus written
+> is tracked honestly in [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md), and boundaries are in
+> [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md).
 
-## Product pitch
+## What it is
 
-FulfillOps is a portfolio-grade simulation of how a real e-commerce fulfillment backend stays correct under failure. It follows an order from placement through inventory reservation, payment authorization, and warehouse dispatch — as four independently deployable services that coordinate through Kafka events instead of shared databases or synchronous call chains. When a step fails partway through, FulfillOps compensates: it releases reserved stock, refunds the simulated payment, and gives an operator a queue of exceptions to resolve, instead of silently losing or duplicating the order.
+FulfillOps is a portfolio-grade simulation of how a real e-commerce fulfillment backend stays
+correct under failure. It follows an order from placement through inventory reservation, payment
+authorization, and warehouse dispatch — as four services that coordinate through Kafka events
+instead of shared databases or synchronous call chains. When a step fails partway through, it
+**compensates**: releases reserved stock, refunds the simulated payment, and gives an operator a
+queue of exceptions to resolve, instead of silently losing or duplicating the order.
 
-The project exists to demonstrate two things concretely, with working code and tests, not just diagrams:
+It demonstrates two things with working code and tests, not just diagrams:
 
-1. **Java backend engineering** — service boundaries, transactional outboxes, idempotent consumers, concurrency-safe inventory updates, and recoverable failure handling.
-2. **Operations systems thinking** — an operator console and analytics surface for a team that has to keep a fulfillment pipeline running, not just a set of REST endpoints.
-
-## Target users
-
-- **CUSTOMER** — places orders (`POST /api/v1/orders`), tracks their status end to end (`GET /api/v1/orders/{orderId}`, live through every real status change), and can request cancellation of their own order (`POST /api/v1/orders/{orderId}/cancellation-requests`). **(live)**
-- **OPERATOR** — works the fulfillment queue, moves orders through `PICKING` → `PACKED` → `DISPATCHED` → `DELIVERED` (`fulfillment-service`'s operator HTTP endpoints), and can cancel a fulfillment before dispatch. **(live)** Works the exception queue through Order Service's ops API (`GET /api/v1/ops/work-queue`, `GET /api/v1/ops/backlog`, `GET /api/v1/ops/orders/{orderId}/timeline`) and the incident lifecycle (`GET /api/v1/ops/incidents`, acknowledge/assign/resolve). **(live)** Does all of this through `apps/ops-console` — Overview, Work Queue, Order Detail, Incidents, Inventory Risk, and Fulfillment Board — logged in through Keycloak. **(live)**
-- **ADMIN** — everything an OPERATOR can do, plus refunds, inventory adjustments, the per-service dead-letter list/replay endpoints (`GET`/`POST /api/v1/admin/dead-letters/...`), and triggering an operations-projection rebuild (`POST /api/v1/admin/operations-projection/rebuild`). **(live)** The console's Incidents route includes an ADMIN-only dead-letter replay panel. **(live)** Inventory adjustments and refunds are still only reachable by hand-built HTTP calls; a console surface for them is *(planned)*.
-
-## Core workflow
-
-1. A customer submits an order using an idempotency key. **(live)**
-2. Order Service validates the request and persists a `PENDING` order and an `OrderPlaced.v1` outbox event in the same transaction. **(live)**
-3. Inventory Service reserves stock with a concurrency-safe update and emits `InventoryReserved.v1` or `InventoryRejected.v1`. **(live)**
-4. Payment Service authorizes a fictional payment after reservation and emits `PaymentAuthorized.v1` or `PaymentDeclined.v1`. **(live)**
-5. Fulfillment Service creates a fulfillment record after authorization and emits `FulfillmentAssigned.v1`. **(live)**
-6. An operator advances the fulfillment through `PICKING`, `PACKED`, `DISPATCHED`, and `DELIVERED`. **(live)**
-7. Order Service consumes lifecycle events from all three other services and exposes the customer's order view *and* a rebuildable, denormalized operations projection behind `/api/v1/ops/**` (KPI overview/time-series/stage-duration reads, SLA-breach-aware backlog, a searchable/CSV-exportable work queue, per-order timelines). **(live)**
-8. Any failure triggers compensation — release inventory, refund the simulated payment, cancel fulfillment where allowed, or mark the order `REQUIRES_REVIEW` for an operator, who works it through the incident acknowledge/assign/resolve lifecycle. **(live)**
-9. Retry topics, dead-letter topics, a reconciliation job, and an ADMIN-only replay endpoint keep failures visible instead of silent. **(live)**
-
-See [`docs/DOMAIN_MODEL.md`](docs/DOMAIN_MODEL.md) for the full state machine and compensation rules.
+1. **Java backend engineering** — service boundaries, transactional outboxes, idempotent
+   consumers, concurrency-safe inventory updates, and recoverable failure handling.
+2. **Operations systems thinking** — an operator console and analytics surface for a team that
+   has to keep a fulfillment pipeline running.
 
 ## Architecture
 
-Four independently deployable domain services, each owning its own PostgreSQL database, coordinating through versioned Kafka events with a transactional outbox/inbox pattern:
+```mermaid
+flowchart LR
+  Customer["Customer / Ops Console"] -->|REST + JWT| Order
+  subgraph Services["Four services — a database each, no shared tables"]
+    Order["Order Service\norders, ops projection,\nsaga, reconciliation"]
+    Inventory["Inventory Service\nstock, reservations"]
+    Payment["Payment Service\nauthorize / decline / refund\n(simulator)"]
+    Fulfillment["Fulfillment Service\nwarehouse workflow"]
+  end
+  Order -->|OrderPlaced| Kafka(("Kafka\nversioned events"))
+  Inventory -->|InventoryReserved / Rejected / Released / LowStock| Kafka
+  Payment -->|PaymentAuthorized / Declined / Refunded| Kafka
+  Fulfillment -->|FulfillmentAssigned / StatusChanged| Kafka
+  Kafka --> Order
+  Kafka --> Inventory
+  Kafka --> Payment
+  Kafka --> Fulfillment
+  Order --- OrderDB[("order_db")]
+  Inventory --- InvDB[("inventory_db")]
+  Payment --- PayDB[("payment_db")]
+  Fulfillment --- FulDB[("fulfillment_db")]
+```
 
-- **Order Service** — order lifecycle, idempotent order placement, cancellation saga orchestration, reconciliation, and the rebuildable operations projection/KPI/incident API.
-- **Inventory Service** — stock levels, concurrency-safe reservation and release.
-- **Payment Service** — deterministic fictional payment authorization, decline, and refund simulator.
-- **Fulfillment Service** — warehouse workflow state machine and operator actions.
-- **Ops Console** — React + TypeScript operations UI for order/exception management. *(planned)*
+Full event mapping: [`docs/EVENT_CATALOG.md`](docs/EVENT_CATALOG.md). Design and reasoning:
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and the [ADR index](docs/adr/README.md).
 
-All four backend services are buildable, independently runnable Spring Boot 4.1.0 / Java 21 applications (`services/`), each with its own PostgreSQL database (migrated by its own Flyway history), native Spring Security OAuth2 Resource Server authentication against a real local Keycloak realm, and a real transactional outbox / idempotent inbox publishing to and consuming from real Kafka topics — with JSON-Schema-validated event contracts in [`contracts/events/`](contracts/events/). No service reads or writes another service's tables, and there is no shared JPA/domain-model module or central saga database — every cross-service reaction (reserve stock, authorize a payment, assign a fulfillment, release/refund/cancel on a compensation trigger) is choreographed: each service reacts to the events it cares about and emits its own in response.
+### Service ownership
 
-Order Service has idempotent order placement (`POST /api/v1/orders`), a customer order view kept current by consuming lifecycle events from all three other services (`InventoryEventsListener`, `PaymentEventsListener`, `FulfillmentEventsListener`), and cancellation (`POST /api/v1/orders/{orderId}/cancellation-requests`) that tracks exactly which compensations a given order needs and finalizes only once every one of them is confirmed. Inventory Service reserves and releases stock with a `SELECT ... FOR UPDATE` concurrency strategy proven under real concurrent load (`ReservationConcurrencyIT` races 10 orders for 5 units of one SKU and confirms exactly 5 win, never negative stock), plus ADMIN product/adjustment endpoints and a Redis-backed availability cache that degrades to PostgreSQL on outage. Payment Service builds its own local order-context projection from `OrderPlaced.v1` (order id, customer id, currency, amount only — never card data), authorizes payments deterministically after `InventoryReserved.v1` using a documented, seeded, amount-driven simulator rule (the same "magic test amount" convention real card-processor sandboxes use), wraps the simulated provider call in a bounded retry and circuit breaker built on Resilience4j's framework-agnostic core libraries (see [ADR 0010](docs/adr/0010-payment-simulator-resilience.md)), and refunds automatically on a cancellation or a fulfillment cancellation, or on an idempotent OPERATOR/ADMIN command. Fulfillment Service runs the `ASSIGNED → PICKING → PACKED → DISPATCHED → DELIVERED` state machine behind operator HTTP endpoints, with optimistic-concurrency (`If-Match`) protection against two operators racing the same fulfillment, and cancels itself in reaction to a cancellation request as long as it's still before dispatch.
+| Service | Owns | Public API (roles) | Port |
+| --- | --- | --- | --- |
+| **Order** | Order lifecycle, idempotent placement, cancellation saga, reconciliation, operations projection/KPIs/incidents | `POST /api/v1/orders` (CUSTOMER), `/api/v1/ops/**` (OPERATOR/ADMIN), dead-letter admin | 8081 |
+| **Inventory** | Stock levels, concurrency-safe reservation/release, adjustments | `/api/v1/inventory/**`, `/api/v1/products` (ADMIN + OPERATOR reads) | 8082 |
+| **Payment** | Deterministic authorize/decline/refund simulator | `/api/v1/payments/**` (OPERATOR/ADMIN) | 8083 |
+| **Fulfillment** | Warehouse workflow state machine, operator actions | `/api/v1/fulfillments/**` (OPERATOR/ADMIN) | 8084 |
+| **Ops Console** | React/TypeScript operator UI (six routes) | Browser, PKCE login | 5173 |
 
-Every consumer in every service has a bounded-retry-then-dead-letter path (Spring Kafka's `@RetryableTopic`) and an ADMIN-only, audited endpoint to safely replay a dead-lettered event by id — never an arbitrary client-supplied payload. Order Service also runs a reconciliation job, guarded by a Postgres advisory lock so only one running instance ever acts on a given pass, that finds orders stuck beyond a configurable threshold and either safely retries the last compensation step or escalates to `REQUIRES_REVIEW` with a deduplicated operations incident. Full details, diagrams, and the reasoning behind each decision are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/DOMAIN_MODEL.md`](docs/DOMAIN_MODEL.md), and [`docs/adr/`](docs/adr/).
+## How it flows
 
-Order Service's operations projection (`OrderOperationsProjection`/`OrderStageDuration`) is kept in sync inside the same transactions that already write `orders`/`order_status_history` on every lifecycle event, so it's atomic with the facts it's derived from and inherits idempotency from the same Kafka inbox dedup everything else here already relies on — no separate mechanism. It's fully rebuildable (`POST /api/v1/admin/operations-projection/rebuild`, ADMIN-only) from this service's own durable tables rather than by replaying Kafka (whose retention here is finite): every event this service has ever processed already left a durable row before it advanced past it. Low-stock visibility follows the same events-only principle: Inventory Service emits `InventoryLowStock.v1` (edge-triggered on crossing a configured threshold) rather than Order Service ever querying Inventory Service directly. Expensive KPI aggregate reads are cached in Redis (`KpiCache`, TTL-only, the same fail-open-to-PostgreSQL shape as Inventory Service's own availability cache); the backlog, stuck-orders, and work-queue reads stay uncached since operators need them fresh. See [`docs/KPI_DICTIONARY.md`](docs/KPI_DICTIONARY.md) for every KPI's exact formula and [`docs/runbooks/INCIDENT_MANAGEMENT.md`](docs/runbooks/INCIDENT_MANAGEMENT.md) for the incident lifecycle.
+**Happy path.** Customer places an order (idempotency key) → Order persists `PENDING` + an
+`OrderPlaced.v1` outbox event in one transaction → Inventory reserves stock and emits
+`InventoryReserved.v1` → Payment authorizes and emits `PaymentAuthorized.v1` → Fulfillment
+creates a fulfillment and emits `FulfillmentAssigned.v1` → an operator advances it through
+`PICKING → PACKED → DISPATCHED → DELIVERED`. Order consumes every service's events to keep the
+customer view and the operations projection current.
 
-## Local development prerequisites
+**Compensation.** Any failure triggers compensation by choreography — no orchestrator: an
+inventory rejection finalizes straight to `CANCELLED`; a declined payment releases the
+reservation; a cancellation before dispatch releases stock, refunds the payment, and cancels the
+fulfillment, finalizing only once every required compensation is confirmed. What cannot be safely
+auto-resolved becomes a `REQUIRES_REVIEW` order plus an operations incident with an
+acknowledge/assign/resolve lifecycle. The full state machine and rules are in
+[`docs/DOMAIN_MODEL.md`](docs/DOMAIN_MODEL.md).
 
-Verified locally:
+## Reliability guarantees — and their exact boundaries
 
-- Java 21 (JDK) — Maven is bundled via `./mvnw` / `mvnw.cmd`, no separate install needed
-- Docker and Docker Compose
+- **At-least-once delivery, made correct by idempotent consumers.** Kafka redelivers; each
+  consumer de-duplicates on an inbox keyed by `(event_id, consumer_name)`, and database
+  constraints (unique `order_id` per reservation/payment/fulfillment) are the backstop. **This
+  is not exactly-once, and the project never claims it is** ([ADR 0004](docs/adr/0004-at-least-once-delivery.md)).
+- **Atomic publish.** An event is written to a transactional outbox in the same transaction as
+  the state change, then relayed to Kafka — no lost or phantom events ([ADR 0003](docs/adr/0003-outbox-inbox.md)).
+- **No oversell.** Reservations use `SELECT ... FOR UPDATE` plus optimistic locking; an
+  integration test races 10 orders for 5 units and asserts exactly 5 win, stock never negative.
+- **Bounded retry, then dead-letter.** Every consumer has retry topics and a `-dlt`; a
+  non-retryable business rejection skips retries. Dead letters are replayable only by an audited
+  ADMIN endpoint, by id — never an arbitrary payload.
+- **Stuck work is found, not lost.** A reconciliation job (guarded by a Postgres advisory lock so
+  only one instance acts per pass) nudges or escalates stuck orders.
+
+## Security
+
+Native Spring Security OAuth2 **Resource Server** on every service, validating a Keycloak JWT by
+issuer **and** a required `fulfillops-api` audience; `realm_access.roles` → `ROLE_*`. Three roles
+(`CUSTOMER`/`OPERATOR`/`ADMIN`) enforced by both URL rules and service-layer ownership checks.
+RFC 9457 Problem Details for every error (no stack traces or secrets leaked). The console uses
+Authorization Code + PKCE and keeps tokens in memory, never `localStorage`. **No card number,
+bank detail, or SSN is ever accepted, logged, or stored** — the payment service is a deterministic
+simulator. Full model and threat summary: [`docs/SECURITY.md`](docs/SECURITY.md).
+
+## Operations and KPIs
+
+Order Service owns a rebuildable operations projection behind `/api/v1/ops/**` (OPERATOR/ADMIN):
+KPI overview / time-series / stage-duration reads, an SLA-breach-aware backlog and stuck-orders
+view, a searchable/filterable/CSV-exportable work queue, per-order event timelines, and the
+incident lifecycle. **Every KPI has an exact documented formula — never a fabricated number** —
+in [`docs/KPI_DICTIONARY.md`](docs/KPI_DICTIONARY.md).
+
+## Screenshots
+
+Real captures from the console's demo mode ([`docs/screenshots/`](docs/screenshots/)):
+
+| | | |
+| --- | --- | --- |
+| [Login](docs/screenshots/01-login.png) | [Overview](docs/screenshots/02-overview.png) | [Work Queue](docs/screenshots/03-work-queue.png) |
+| [Order Detail](docs/screenshots/04-order-detail.png) | [Incidents](docs/screenshots/05-incidents.png) | [Inventory Risk](docs/screenshots/06-inventory-risk.png) |
+| [Fulfillment Board](docs/screenshots/07-fulfillment-board.png) | | |
+
+Grafana, distributed-trace, and failure-recovery screenshots are not committed — they need the
+full observability stack running; capture instructions are in
+[`docs/demo/FAILURE_DEMO.md`](docs/demo/FAILURE_DEMO.md). See
+[`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md).
+
+## Quick start
+
+Requires **JDK 21** (Maven is bundled via `./mvnw`) and **Docker**.
 
 ```
 cp .env.example .env
-make infra-up              # PostgreSQL, Kafka, Redis, Keycloak — waits until all are healthy
-make run-order              # or run-inventory / run-payment / run-fulfillment, each in its own terminal
+make infra-up               # PostgreSQL, Kafka, Redis, Keycloak — waits until healthy
+make run-order              # each service in its own terminal (or: make demo-up, all in containers)
 make smoke                  # start all four services, exercise JWT auth, then stop them
-make smoke-inventory        # create stock, place a real order, observe the InventoryReserved.v1 event
-make smoke-payment          # place a normal and a seeded-decline order, observe both payment outcomes
-make smoke-fulfillment      # follow an order to a real FulfillmentAssigned.v1 event
-make smoke-cancellation     # request cancellation and follow the compensation saga to CANCELLED
-make smoke-operations       # exercise the ops API: KPI overview, work queue, backlog, timeline, rebuild
-./mvnw -B clean verify      # format check, build, unit + Testcontainers integration tests
+./mvnw -B verify            # format check, build, unit + Testcontainers integration tests + coverage gate
 ```
 
-Each service exposes `GET /actuator/health` (public) and `GET /api/v1/whoami` (requires a bearer token) once running — `order-service` on port 8081, `inventory-service` on 8082, `payment-service` on 8083, `fulfillment-service` on 8084. Full startup order and troubleshooting: [`docs/runbooks/local-infrastructure.md`](docs/runbooks/local-infrastructure.md).
+Deterministic end-to-end demo (seeds one order of every shape through the real APIs — no manual
+DB edits): `scripts/seed-demo-data.sh`, then open the console. Walkthrough:
+[`docs/demo/DEMO_SCRIPT.md`](docs/demo/DEMO_SCRIPT.md).
 
-### Operations console
+**Console:** `cd apps/ops-console && npm install && npm run dev` → http://localhost:5173.
 
-With `make infra-up` and all four services running, start the console:
+**Demo users** (fictional, local-only, from `infra/keycloak/realm-export.json`): `customer.demo`,
+`operator.demo`, `admin.demo`. `operator.demo`'s password is `OperatorDemo!123` — as fictional as
+every other credential here.
+
+## API examples
+
+```bash
+# Place an order (CUSTOMER). Totals are computed server-side from the line items.
+curl -sf -X POST http://localhost:8081/api/v1/orders \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Idempotency-Key: 6f1e...-unique-per-request" \
+  -H "Content-Type: application/json" \
+  -d '{ "items": [ { "sku": "DEMO-SKU-1", "quantity": 2, "unitPrice": { "amount": "19.99", "currency": "USD" } } ] }'
+
+# Track it (owner, or any OPERATOR/ADMIN)
+curl -sf http://localhost:8081/api/v1/orders/{orderId} -H "Authorization: Bearer $TOKEN"
+
+# Request cancellation (own order)
+curl -sf -X POST http://localhost:8081/api/v1/orders/{orderId}/cancellation-requests \
+  -H "Authorization: Bearer $TOKEN" -H "Idempotency-Key: ..." \
+  -H "Content-Type: application/json" -d '{ "reasonDetail": "changed my mind" }'
+
+# Operations KPI overview (OPERATOR/ADMIN)
+curl -sf http://localhost:8081/api/v1/ops/overview -H "Authorization: Bearer $OPERATOR_TOKEN"
+```
+
+Every service serves OpenAPI at `/v3/api-docs` and Swagger UI at `/swagger-ui.html`.
+
+## Testing and evidence
+
+Four test levels — unit, web-slice, Testcontainers integration, and frontend (Vitest +
+Playwright) — plus JSON-Schema contract validation. Full strategy and commands:
+[`docs/TESTING.md`](docs/TESTING.md).
+
+- **Unit + web-slice tests, run this phase (`./mvnw -B test`): 176 tests, 0 failures** (contracts
+  14, order 70, inventory 39, payment 30, fulfillment 23).
+- **Integration tests: 40 `*IT.java`** files (Testcontainers) — run with `./mvnw -B verify`.
+- **Coverage gate:** business code only, floor **0.60** line coverage; the true unit+integration
+  figure is produced by CI and not yet claimed here (see [`docs/TESTING.md`](docs/TESTING.md)).
+- **Load (k6), measured on a shared sandbox — not capacity numbers:** order submission p95
+  889 ms, ops work-queue p95 359 ms, mixed p95 506 ms, **0% request failures** throughout. Raw
+  summaries in [`docs/evidence/k6/`](docs/evidence/k6/).
+
+## Observability and failure demos
+
+Prometheus metrics and OpenTelemetry tracing on every service — one order follows as a single
+distributed trace across all four services and every Kafka boundary (verified live in Phase 11 as
+one 26-span trace from Tempo). Grafana ships five provisioned dashboards and six alert rules
+(`infra/compose/observability/`). Six committed failure scenarios
+([`tests/failure-scenarios/`](tests/failure-scenarios/)) visibly trigger and recover from known
+incidents — payment outage, Kafka outage/backlog, Redis fallback, duplicate delivery, poison
+message→DLT, stuck-order reconciliation. Narrated: [`docs/demo/FAILURE_DEMO.md`](docs/demo/FAILURE_DEMO.md).
+
+## Project structure
 
 ```
-cd apps/ops-console
-npm install
-npm run dev                 # http://localhost:5173, sign in as operator.demo
-scripts/seed-demo-data.sh   # from the repo root — deterministic fictional demo data
-npm test                    # Vitest component/unit tests
-npm run e2e                 # Playwright, against the real local stack
-npm run screenshots         # captures docs/screenshots/*.png from the real stack
+services/            # order / inventory / payment / fulfillment — a Spring Boot module each
+contracts/           # JSON Schema event contracts + validation test (no production code)
+apps/ops-console/    # React + TypeScript operations console
+infra/compose/       # Docker Compose: infrastructure, observability, production-like demo overlay
+infra/kubernetes/    # Kustomize base + kind overlay (local K8s)
+infra/terraform/     # optional AWS reference (validated, never applied)
+infra/keycloak/      # fictional local realm export
+tests/failure-scenarios/  # committed failure demos
+tests/perf/          # k6 load tests
+scripts/             # smoke, seed, demo, kind-deploy, verify-all, audit-repo
+docs/                # architecture, domain model, ADRs, testing, security, KPIs, runbooks, demo
+.github/workflows/   # CI, CodeQL, release, terraform checks
 ```
 
-Requires Node.js LTS. `operator.demo`'s password is `OperatorDemo!123` (as fictional and local-only as every other credential in `infra/keycloak/realm-export.json` — see [`docs/runbooks/local-infrastructure.md`](docs/runbooks/local-infrastructure.md)).
+## Design trade-offs
 
-Minimal Dockerfiles exist for all four services (`services/*/Dockerfile`, `make docker-build`), and `infra/compose/docker-compose.yml` runs the platform infrastructure — but the four services themselves aren't part of that Compose stack yet; they run directly on the host against it.
+- **Choreography over an orchestrator** — no central saga engine; each service reacts to facts.
+  Simpler and more decoupled, at the cost of the flow being distributed across services rather
+  than readable in one place ([ADR 0002](docs/adr/0002-choreography-not-orchestration.md)).
+- **Database per service, events not shared classes** — strong isolation and independent
+  deployability, at the cost of duplicated outbox/inbox code by design (no shared module).
+- **Payment as a deterministic simulator** — lets failure/retry/circuit behavior be demonstrated
+  reproducibly without any real gateway or card data ([ADR 0010](docs/adr/0010-payment-simulator-resilience.md)).
+- **Stateful infra outside Kubernetes** — the K8s manifests deploy the stateless services and
+  point at external Postgres/Kafka/Redis, keeping the packaging exercise focused
+  ([`infra/kubernetes/README.md`](infra/kubernetes/README.md)).
+
+## Known limitations
+
+Delivery is at-least-once (not exactly-once); payment is simulated; K8s/Terraform are packaging
+references (Terraform is never applied); some admin actions are HTTP-only with no console screen
+yet; CI has not run on GitHub so its coverage number is pending. The full, honest list is
+[`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md).
 
 ## Roadmap
 
-| Phase | Outcome |
-|---|---|
-| 0 | Product charter, architecture, agent rules — **complete** |
-| 1 | Buildable four-service monorepo — **complete** |
-| 2 | Reproducible local infrastructure and migrations — **complete** |
-| 3 | Versioned events, outbox/inbox, correlation — **complete** |
-| 4 | Secure, idempotent Order Service — **complete** |
-| 5 | Race-safe Inventory Service — **complete** |
-| 6 | Resilient Payment Service simulator — **complete** |
-| 7 | Fulfillment workflow and operator controls — **complete** |
-| 8 | Saga compensation and recovery — **complete** |
-| 9 | Operations read model and SLA APIs — **complete** |
-| 10 | Professional operations console — **complete** |
-| 11 | Metrics, traces, alerts, load/failure tests *(planned)* |
-| 12 | CI/CD, supply-chain checks, deployment packaging *(planned)* |
-| 13 | Documentation, screenshots, demo, resume proof *(planned)* |
-| 14 | Claude final adversarial audit *(planned)* |
-| Final | Cursor independent wrap-up *(planned)* |
+| Phase | Outcome | Status |
+|---|---|---|
+| 0–10 | Charter → services → saga → ops read model → console | **complete** |
+| 11 | Metrics, traces, alerts, load/failure tests | **complete** |
+| 12 | CI/CD, supply-chain checks, deployment packaging | **complete** |
+| 13 | Documentation, screenshots, demo, resume evidence | **in progress** |
+| 14 | Final adversarial audit | (planned) |
 
-Full detail per phase, including resume signal and acceptance criteria: [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md).
+Per-phase detail and verification: [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md).
 
-## Project documents
+## Documents
 
-- [`docs/PROJECT_CHARTER.md`](docs/PROJECT_CHARTER.md) — business problem, users, success criteria, scope.
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system design and diagrams.
-- [`docs/DOMAIN_MODEL.md`](docs/DOMAIN_MODEL.md) — entities, statuses, events, invariants, compensation.
-- [`docs/KPI_DICTIONARY.md`](docs/KPI_DICTIONARY.md) — exact formulas for every operations KPI.
-- [`docs/adr/`](docs/adr/) — architecture decision records.
-- [`docs/runbooks/local-infrastructure.md`](docs/runbooks/local-infrastructure.md) — local infra startup order and troubleshooting.
-- [`docs/runbooks/INCIDENT_MANAGEMENT.md`](docs/runbooks/INCIDENT_MANAGEMENT.md) — the operations incident lifecycle.
-- [`contracts/events/README.md`](contracts/events/README.md) — the event envelope and per-event JSON Schema contracts, and the versioning rule.
-- [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) — rules for coding agents working in this repository.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/DOMAIN_MODEL.md`](docs/DOMAIN_MODEL.md) · [ADR index](docs/adr/README.md)
+- [`docs/EVENT_CATALOG.md`](docs/EVENT_CATALOG.md) · [`docs/KPI_DICTIONARY.md`](docs/KPI_DICTIONARY.md)
+- [`docs/TESTING.md`](docs/TESTING.md) · [`docs/SECURITY.md`](docs/SECURITY.md) · [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md)
+- [`docs/demo/DEMO_SCRIPT.md`](docs/demo/DEMO_SCRIPT.md) · [`docs/demo/FAILURE_DEMO.md`](docs/demo/FAILURE_DEMO.md) · [`docs/RESUME_EVIDENCE.md`](docs/RESUME_EVIDENCE.md)
+- [`docs/RELEASE.md`](docs/RELEASE.md) · [`docs/runbooks/`](docs/runbooks/) · [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`SECURITY.md`](SECURITY.md)
 
 ## Engineering conventions
 
-Every coding, editing, refactoring, debugging, testing, migration, scripting, configuration, and code-review task in this repository follows the `plain-readable-code` style — see [`.claude/skills/plain-readable-code/SKILL.md`](.claude/skills/plain-readable-code/SKILL.md) and [`AGENTS.md`](AGENTS.md).
+Every change follows the `plain-readable-code` style —
+[`.claude/skills/plain-readable-code/SKILL.md`](.claude/skills/plain-readable-code/SKILL.md) and
+[`AGENTS.md`](AGENTS.md). Build with `make verify-all`; audit docs/evidence with
+`scripts/audit-repo.sh`.

@@ -1,6 +1,12 @@
 # Architecture
 
-> Status: the four backend services are buildable, own their databases, authenticate against a real Keycloak realm, and (as of Phase 3) have working transactional-outbox / idempotent-inbox messaging against real Kafka topics. No business entity, command endpoint, or domain rule is implemented yet — see [`PHASE_STATUS.md`](PHASE_STATUS.md).
+> Status: the four backend services are fully implemented — order placement and lifecycle,
+> race-safe inventory, the payment simulator, the fulfillment workflow, the compensation saga,
+> reconciliation, and the operations projection/KPI/incident API — plus the operations console,
+> full observability (metrics/traces/dashboards/alerts), and CI/CD with Kubernetes and (optional,
+> never-applied) AWS Terraform packaging. See [`PHASE_STATUS.md`](PHASE_STATUS.md) for exactly
+> what was built and how it was verified, and [`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) for
+> the boundaries.
 
 ## Overview
 
@@ -109,12 +115,38 @@ Redis is used only for disposable, rebuildable caches (for example, hot-path rea
 
 `apps/ops-console` is a React + TypeScript single-page application for operators and admins. It calls only HTTP APIs (primarily Order Service's operations projection endpoints and Fulfillment Service's operator-action endpoints) and holds no direct database or Kafka access.
 
-## Explicitly excluded
+## Observability (implemented in Phase 11)
 
-No API gateway, service discovery, GraphQL, Kubernetes operators, or machine learning/AI components are part of this architecture. Kubernetes and Terraform artifacts under `infra/` are later packaging exercises evaluated independently of local development, which runs entirely on Docker Compose.
+Every service exposes `/actuator/prometheus` (Micrometer) and ships OpenTelemetry traces over
+OTLP. Trace context is W3C, propagated across both HTTP and Kafka — and, crucially, across the
+outbox boundary: `OutboxEventWriter` captures the active trace context when it writes a row, and
+`OutboxRelay` resumes it before publishing, so an order is one continuous trace across all four
+services and every Kafka hop rather than a new trace per publish. Structured JSON logs carry
+`service`, `environment`, `traceId`, `spanId`, `correlationId`, `eventId`, and `aggregateId`, and
+never a token or a customer-data payload. Metrics are bounded-cardinality (stage, outcome, event
+type — never an order/user/event id). The local Compose stack adds Prometheus, Grafana (five
+provisioned dashboards, two datasources), and Tempo; six demo-labeled Prometheus alert rules
+cover error rate, oldest outbox row, DLT growth, stuck orders, reconciliation failure, and service
+down. Failure scenarios and k6 load tests live under `tests/`. See
+[`demo/FAILURE_DEMO.md`](demo/FAILURE_DEMO.md) and [`TESTING.md`](TESTING.md).
+
+## Packaging and delivery (implemented in Phase 12)
+
+CI (`.github/workflows/`) runs format + unit + ArchUnit boundary rules, Testcontainers
+integration tests, a JaCoCo business-code coverage gate, event-contract validation, frontend
+lint/test/build, Playwright e2e, dependency review, CodeQL, image builds, Trivy image scans, and
+SBOM generation — least-privilege permissions throughout. Service images are non-root, minimal
+JRE, digest-pinned, and OCI-labeled, with no secret in the build context. `infra/kubernetes`
+holds a Kustomize base + kind overlay (probes, resource limits, PDBs, NetworkPolicies, a
+Secret *template*); `infra/terraform` is an **optional AWS reference that is validated but never
+applied**. Stateful infrastructure stays outside the cluster by design — see
+[`../infra/kubernetes/README.md`](../infra/kubernetes/README.md). Not part of the architecture:
+API gateway, service discovery, GraphQL, Kubernetes operators, or ML/AI components.
 
 ## Related documents
 
-- [`DOMAIN_MODEL.md`](DOMAIN_MODEL.md) — entities, statuses, events, invariants, and compensation rules, including the order lifecycle and payment-decline compensation diagrams.
-- [`adr/`](adr/) — the reasoning behind each boundary and technology decision listed above.
-- [`contracts/events/README.md`](../contracts/events/README.md) — the event envelope and per-event JSON Schema contracts referenced above.
+- [`DOMAIN_MODEL.md`](DOMAIN_MODEL.md) — entities, statuses, events, invariants, and compensation rules.
+- [`EVENT_CATALOG.md`](EVENT_CATALOG.md) — every event, its producer, and its consumers.
+- [`SECURITY.md`](SECURITY.md) · [`TESTING.md`](TESTING.md) · [`KPI_DICTIONARY.md`](KPI_DICTIONARY.md) · [`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md)
+- [`adr/README.md`](adr/README.md) — the reasoning behind each boundary and technology decision.
+- [`../contracts/events/README.md`](../contracts/events/README.md) — the event envelope and per-event JSON Schema contracts.
