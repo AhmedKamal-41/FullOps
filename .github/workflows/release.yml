@@ -38,7 +38,7 @@ jobs:
           cp services/*/target/*-service.jar release-artifacts/
           ls -l release-artifacts
       - name: Create release and upload jars
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release-artifacts/*.jar
           generate_release_notes: true
