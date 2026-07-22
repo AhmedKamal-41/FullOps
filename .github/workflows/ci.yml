@@ -8,9 +8,7 @@
 #
 # Third-party actions are pinned to a released version tag and kept current by
 # .github/dependabot.yml. Pinning each to an immutable commit SHA is the stronger
-# supply-chain posture and is tracked as a follow-up (see docs/RELEASE.md) — it was
-# left as a tag pin here rather than committing SHAs that could not be verified from
-# this offline build environment.
+# supply-chain posture and is a reasonable next hardening step.
 
 name: CI
 

@@ -19,8 +19,8 @@ SLA thresholds (`app.ops.sla.stage-thresholds` in `application.yml`) and stuck-o
 (`app.ops.sla.age-buckets`) are fictional numbers picked to make the demo data interesting, not
 numbers backed by any real measurement or SLA agreement. They are configuration, meant to be
 changed per environment. Nothing in this codebase claims a real throughput, latency, or scale
-number anywhere — see `CLAUDE.md`'s rule against publishing such claims without a command in this
-repository actually producing them.
+number anywhere — no such number is published unless a command in this repository actually produced
+it.
 
 ## Orders received / completed / cancelled
 
@@ -110,7 +110,7 @@ ones inventory rejected outright, which payment never even sees) would understat
   `contracts/events/PaymentAuthorized.v1.schema.json`'s `precedingTechnicalFailureCount`). It does
   not see individual attempts, nor a technical failure that Payment Service's own retry recovered
   from *without* ultimately producing a terminal outcome tied to a specific order in this window.
-  For attempt-level detail, see Payment Service's own Resilience4j/Actuator metrics (Phase 6) —
+  For attempt-level detail, see Payment Service's own Resilience4j/Actuator metrics —
   intentionally not duplicated into this projection.
 
 ## Fulfillment throughput
@@ -125,7 +125,7 @@ orders that were dispatched in the window, regardless of whether they've reached
 Included in `/api/v1/ops/kpis/overview`. **Scoped to Order Service's own tables only** — a
 deliberate, documented limitation, not an oversight. A true fleet-wide view would require each of
 the other three services to publish its own backlog as a signal, which nothing in this codebase
-does yet; each service's own Phase 8 dead-letter admin endpoint (`GET
+does yet; each service's own dead-letter admin endpoint (`GET
 /api/v1/admin/dead-letters`) is today a separate, per-service surface, not aggregated here.
 
 - **DLT backlog**: `COUNT(dead_letter_event WHERE status = 'PENDING_REVIEW')`; oldest age from the
@@ -164,7 +164,7 @@ point (never a missing gap). `interval` is a closed two-value enum
 **GET `/api/v1/ops/low-stock`** — every SKU currently below its configured threshold
 (`low_stock_signal.below_threshold = true`), the latest state from the most recent
 `InventoryLowStock.v1` event for that SKU (see `contracts/events/InventoryLowStock.v1.schema.json`
-and its "aggregateId exception" note in `contracts/events/README.md`). Not time-windowed — always
+and its "aggregateId exception" note in `../contracts/README.md`). Not time-windowed — always
 the current state.
 
 ## Why `REQUIRES_REVIEW` is excluded from backlog/SLA/stuck-order KPIs
@@ -180,7 +180,7 @@ labels.
 
 Overview, time-series, and stage-duration-percentile reads are cached in Redis
 (`app.ops.cache.ttl-seconds`, default 30s) — see `KpiCache`, which mirrors
-`InventoryAvailabilityCache`'s shape from Phase 5: every cache key includes the full filter set
+`InventoryAvailabilityCache`'s shape: every cache key includes the full filter set
 (window, interval), and any Redis error falls back to computing directly from PostgreSQL, logged
 and counted (`ops.kpi.cache.failures`), never surfaced as an error to the caller. Backlog,
 stuck-orders, and the work queue are **not** cached — they're single indexed queries an operator

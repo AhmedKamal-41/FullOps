@@ -40,7 +40,7 @@ audit: ## Audit the repo: required docs/screenshots, broken links, secrets, READ
 
 # The run-* targets source .env into the shell environment so Spring Boot's
 # ${ORDER_DB_PASSWORD}-style placeholders resolve, matching what infra-up expects
-# to already be running. See docs/runbooks/local-infrastructure.md.
+# to already be running. See docs/OPERATIONS_RUNBOOK.md.
 run-order: ## Run Order Service against the Compose infra (profile: local).
 	set -a && . ./.env && set +a && SPRING_PROFILES_ACTIVE=local ./mvnw -pl services/order-service spring-boot:run
 

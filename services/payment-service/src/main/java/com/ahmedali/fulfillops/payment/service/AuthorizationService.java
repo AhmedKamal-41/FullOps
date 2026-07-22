@@ -28,7 +28,7 @@ public class AuthorizationService {
 
   private static final Logger log = LoggerFactory.getLogger(AuthorizationService.class);
 
-  // Order Service's operations projection (Phase 9) tracks how many transient failures preceded
+  // Order Service's operations projection tracks how many transient failures preceded
   // a final authorize/decline outcome, as a KPI proxy for payment technical-failure rate — see
   // AuthorizationTransaction and contracts/events/PaymentAuthorized.v1.schema.json.
   private static final List<PaymentAttemptOutcome> TECHNICAL_FAILURE_OUTCOMES =

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 11 failure demo: publishes a malformed (non-JSON) message directly onto
+# Failure demo: publishes a malformed (non-JSON) message directly onto
 # fulfillops.order.events — a "poison message" no retry can ever fix — and watches
 # inventory-service exhaust its 4 retry attempts and route it to its dead-letter topic.
 # Confirms a dead_letter_event row is persisted (queryable/replayable — see

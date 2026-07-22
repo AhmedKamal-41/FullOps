@@ -25,8 +25,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Proves PaymentAuthorizationClient's retry and circuit-breaker mechanics in isolation, using
  * FakePaymentProviderPort (not SimulatorPaymentProviderAdapter, not HTTP, not randomness) so the
- * behavior under test is purely "how does the client react to what the port does," per the phase
- * charter's requirement for a fake provider port.
+ * behavior under test is purely "how does the client react to what the port does," per the
+ * requirement for a fake provider port.
  */
 class PaymentAuthorizationClientTest {
 

@@ -1,5 +1,5 @@
--- Phase 8: the cancellation saga, operations incidents, and dead-letter recovery.
--- See docs/DOMAIN_MODEL.md for the state machine and compensation rules these
+-- The cancellation saga, operations incidents, and dead-letter recovery.
+-- See docs/ARCHITECTURE.md for the state machine and compensation rules these
 -- tables enforce.
 
 -- CANCELLATION_PENDING is a new intermediate status: an order sits here while
@@ -107,7 +107,7 @@ CREATE TABLE dead_letter_event (
 CREATE INDEX idx_dead_letter_event_status ON dead_letter_event (status);
 
 -- Idempotency ledger for POST /api/v1/orders/{orderId}/cancellation-requests — a separate table
--- from idempotency_requests (Phase 4's order-creation ledger) because the two operations must
+-- from idempotency_requests (the order-creation ledger) because the two operations must
 -- never collide on the same (actor, key) pair: a customer could plausibly reuse a string they
 -- already used to place the order when they later cancel it. actor_id is the acting principal's
 -- subject (a customer cancelling their own order, or an operator/admin cancelling any order), not

@@ -1,4 +1,4 @@
--- Fulfillment Service's own domain tables. See docs/DOMAIN_MODEL.md for the
+-- Fulfillment Service's own domain tables. See docs/ARCHITECTURE.md for the
 -- fulfillment state machine these constraints enforce.
 
 -- One row per order Fulfillment has taken on. order_id is UNIQUE: PaymentAuthorized.v1

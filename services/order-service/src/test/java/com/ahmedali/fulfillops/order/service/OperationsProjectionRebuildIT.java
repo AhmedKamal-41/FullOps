@@ -29,7 +29,7 @@ import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * The phase's core "done when" criterion: build the projection through the real event-driven path
+ * The core "done when" criterion for projection rebuild: build the projection through the real event-driven path
  * (happy path to DELIVERED, an inventory rejection, a payment decline that cancels, and an
  * incident), snapshot it, rebuild it from scratch, and assert the rebuilt tables are identical —
  * proving rebuild is a real reconstruction of this service's own durable history, not a best-effort

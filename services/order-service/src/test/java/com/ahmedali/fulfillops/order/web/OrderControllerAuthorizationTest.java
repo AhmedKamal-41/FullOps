@@ -31,8 +31,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Every request in these tests carries a JWT built with jwt() (see WhoAmIAuthorizationTest in Phase
- * 2 for why this doesn't need a running Keycloak) — what's under test here is SecurityConfig's
+ * Every request in these tests carries a JWT built with jwt() (see WhoAmIAuthorizationTest
+ * for why this doesn't need a running Keycloak) — what's under test here is SecurityConfig's
  * URL-based role rules and OrderController's own ownership check, not token validation itself. The
  * subject is always set explicitly to a real UUID string: jwt()'s own default subject isn't one,
  * and the controller does UUID.fromString(sub).

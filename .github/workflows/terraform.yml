@@ -2,7 +2,7 @@
 # infra/terraform. These jobs format-check, validate, lint, and security-scan the
 # modules. They never run `terraform plan` against a real account and never run
 # `terraform apply` — nothing here provisions or costs anything. See
-# infra/terraform/README.md.
+# infra/README.md.
 
 name: Terraform checks
 

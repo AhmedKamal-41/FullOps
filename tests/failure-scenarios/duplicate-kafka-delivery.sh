@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 11 failure demo: places one real order, captures the exact OrderPlaced.v1 JSON
+# Failure demo: places one real order, captures the exact OrderPlaced.v1 JSON
 # inventory-service already consumed from fulfillops.order.events, then republishes that exact
 # same message (same eventId) straight onto the topic — simulating the at-least-once redelivery
 # Kafka can always do. Confirms inventory-service's inbox dedup silently ignores it (the

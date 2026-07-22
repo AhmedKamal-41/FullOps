@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
  * the order's current status: DELIVERED can never be cancelled, CANCELLED/REQUIRES_REVIEW/
  * CANCELLATION_PENDING are already resolved one way or another (a safe no-op), DISPATCHED escalates
  * straight to REQUIRES_REVIEW (goods are physically in transit, so this is never automated — see
- * docs/DOMAIN_MODEL.md), and everything else starts the compensation saga in
+ * docs/ARCHITECTURE.md), and everything else starts the compensation saga in
  * OrderCancellationTransaction.
  */
 @Service

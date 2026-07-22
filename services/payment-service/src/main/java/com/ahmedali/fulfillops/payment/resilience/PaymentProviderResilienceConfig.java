@@ -20,7 +20,7 @@ import org.springframework.context.annotation.Configuration;
 /**
  * Wires Resilience4j's framework-agnostic core libraries (resilience4j-circuitbreaker,
  * resilience4j-retry, resilience4j-micrometer) directly, not the resilience4j-spring-boot3/4
- * starter — see docs/adr/0010-payment-simulator-resilience.md for why: no resilience4j Spring Boot
+ * starter — see docs/ARCHITECTURE.md for why: no resilience4j Spring Boot
  * starter with verified Spring Boot 4.1 support was available on Maven Central when this was
  * written. PaymentAuthorizationClient is what actually decorates provider calls with the beans
  * built here.

@@ -6,8 +6,8 @@ import java.util.UUID;
 /**
  * Thrown when an operator tries to cancel a fulfillment that has already been dispatched or
  * delivered — goods are physically in transit (or already handed over) at that point, so
- * cancellation is never automatic. reasonCode is machine-readable on purpose: a later phase's
- * REQUIRES_REVIEW routing (see docs/DOMAIN_MODEL.md's compensation rules) can key off it instead of
+ * cancellation is never automatic. reasonCode is machine-readable on purpose: the
+ * REQUIRES_REVIEW routing (see docs/ARCHITECTURE.md's compensation rules) can key off it instead of
  * parsing free text.
  */
 public class FulfillmentCancellationNotAllowedException extends RuntimeException {

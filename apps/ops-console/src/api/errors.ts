@@ -1,5 +1,4 @@
-// RFC 9457 Problem Details — every error the backend returns takes this shape (see
-// CLAUDE.md's "Use RFC 9457 Problem Details for HTTP errors" rule).
+// RFC 9457 Problem Details — every error the backend returns takes this shape.
 export interface ProblemDetail {
   type?: string;
   title?: string;

@@ -115,7 +115,7 @@ public class OrderController {
       description =
           "Requires an Idempotency-Key header. A customer may only cancel their own order; an "
               + "operator/admin may cancel any order but must supply a reason. What happens next "
-              + "depends on the order's current status — see docs/DOMAIN_MODEL.md.")
+              + "depends on the order's current status — see docs/ARCHITECTURE.md.")
   @PostMapping("/{orderId}/cancellation-requests")
   public OrderResponse requestCancellation(
       @PathVariable UUID orderId,

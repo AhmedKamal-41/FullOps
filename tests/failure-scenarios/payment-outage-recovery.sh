@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 11 failure demo: places several orders at the seeded fictional amount 9998.00 — every
+# Failure demo: places several orders at the seeded fictional amount 9998.00 — every
 # attempt against the simulator is a technical failure at that amount (see V2__payments.sql,
 # "for demonstrating retry exhaustion and the circuit breaker opening") — and watches the
 # payment-provider circuit breaker trip to OPEN. Then places a normal-priced order once the

@@ -7,7 +7,7 @@
 # The stateful infrastructure (PostgreSQL, Kafka, Redis, Keycloak) is NOT deployed into
 # the cluster — it stays in Docker Compose on the host (run `make infra-up` first). The
 # pods reach it at host.docker.internal (see infra/kubernetes/base/configmap.yaml). This
-# trade-off is documented in infra/kubernetes/README.md.
+# trade-off is documented in infra/README.md.
 #
 # Safety: this script only ever creates and deletes a cluster named exactly
 # "fulfillops". It never touches any other kind cluster, and it never deletes a Docker

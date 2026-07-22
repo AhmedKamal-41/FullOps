@@ -4,7 +4,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The allowed-transitions table from docs/DOMAIN_MODEL.md's order status state machine, made
+ * The allowed-transitions table from docs/ARCHITECTURE.md's order status state machine, made
  * explicit and checkable in code. CANCELLED is reachable directly only from PENDING — the one case
  * where nothing was ever reserved or charged, so there is nothing to wait for (see
  * OrderCancellationTransaction). Every other nonterminal status routes cancellation through

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 5 smoke flow: creates a fictional product and stock via Inventory Service's
+# Smoke flow: creates a fictional product and stock via Inventory Service's
 # admin API, places a real order for it through Order Service, and observes the
 # resulting InventoryReserved.v1 (or InventoryRejected.v1) event actually land on
 # fulfillops.inventory.events. Starts only the two services it needs (order,

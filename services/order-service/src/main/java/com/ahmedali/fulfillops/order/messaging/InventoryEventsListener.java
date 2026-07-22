@@ -135,7 +135,7 @@ public class InventoryEventsListener {
         envelope.eventId());
   }
 
-  // Not order-scoped (see contracts/events/README.md's aggregateId exception for this event) —
+  // Not order-scoped (see contracts/README.md's aggregateId exception for this event) —
   // a plain upsert keyed by sku, independent of the inbox's per-order dedup semantics elsewhere
   // in this class, but still covered by the same (event_id, consumer_name) check in onMessage.
   private void handleLowStock(EventEnvelope envelope) {

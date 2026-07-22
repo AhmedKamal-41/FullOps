@@ -1,7 +1,7 @@
 # Local-only platform: PostgreSQL (one database/user per service), Kafka (KRaft,
 # single node), Redis, and Keycloak. Run from the repository root via the Makefile
 # targets (`make infra-up`, etc.), which pass --env-file .env so these variables
-# resolve. See docs/runbooks/local-infrastructure.md for startup order and
+# resolve. See docs/OPERATIONS_RUNBOOK.md for startup order and
 # troubleshooting.
 #
 # Every image tag below is pinned to a specific version — never `latest` — so a
@@ -76,7 +76,7 @@ services:
       start_period: 10s
 
   # Fictional realm, users, and client secrets only — see infra/keycloak/realm-export.json
-  # and docs/runbooks/local-infrastructure.md. Nothing here is a real credential.
+  # and docs/OPERATIONS_RUNBOOK.md. Nothing here is a real credential.
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.0
     container_name: fulfillops-keycloak
@@ -85,7 +85,7 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       # Pins the token issuer to a single, fixed URL regardless of whether it's
       # reached from the host or from another container, so JWT `iss` validation
-      # is consistent everywhere. See docs/runbooks/local-infrastructure.md.
+      # is consistent everywhere. See docs/OPERATIONS_RUNBOOK.md.
       KC_HOSTNAME: "http://localhost:8080"
       KC_HEALTH_ENABLED: "true"
     command: ["start-dev", "--import-realm"]
@@ -105,9 +105,9 @@ services:
       retries: 15
       start_period: 60s
 
-  # --- Observability (Phase 11) ---------------------------------------------------------
+  # --- Observability ---------------------------------------------------------
   # All four app services still run on the host (make run-order etc.), not in this Compose
-  # network — see docs/runbooks/local-infrastructure.md. Prometheus reaches them via
+  # network — see docs/OPERATIONS_RUNBOOK.md. Prometheus reaches them via
   # host.docker.internal; Tempo and Grafana are reached by the host services/browser via their
   # published ports below.
 
@@ -148,7 +148,7 @@ services:
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
-      # Local demo only — see docs/runbooks/local-infrastructure.md. Never a real credential.
+      # Local demo only — see docs/OPERATIONS_RUNBOOK.md. Never a real credential.
       GF_SECURITY_ADMIN_PASSWORD: "fulfillops-local-only-pw"
     volumes:
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro

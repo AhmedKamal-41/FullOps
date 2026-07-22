@@ -21,7 +21,7 @@ import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Covers Phase 8's new autonomous compensation listeners: FulfillmentCancelledListener and
+ * Covers the autonomous compensation listeners: FulfillmentCancelledListener and
  * OrderEventsListener's OrderCancellationRequested handling. Both converge on
  * RefundService.refundForCompensation, which is a safe no-op when there's no authorized payment to
  * refund.

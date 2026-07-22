@@ -1,5 +1,5 @@
 # All thresholds below are demo defaults for a single-node local Compose stack, not tuned
-# production SLOs — see docs/runbooks/ for what each alert means and how to act on it. There is
+# production SLOs — see docs/OPERATIONS_RUNBOOK.md for what each alert means and how to act on it. There is
 # no Alertmanager in this stack: these rules are evaluated by Prometheus itself and show up under
 # its own "Alerts" page (http://localhost:9090/alerts), which is enough to demonstrate detection
 # without wiring up a notification channel nothing in this project would actually page.
@@ -17,7 +17,7 @@ groups:
           severity: warning
         annotations:
           summary: "{{ $labels.service }} server error rate above 10% for 5m (demo threshold)"
-          runbook: docs/runbooks/payment-technical-failure.md
+          runbook: docs/OPERATIONS_RUNBOOK.md
 
       - alert: OutboxOldestRowTooOld
         expr: outbox_oldest_unpublished_age_seconds > 300
@@ -26,7 +26,7 @@ groups:
           severity: warning
         annotations:
           summary: "{{ $labels.service }} has an outbox row unpublished for over 5m (demo threshold)"
-          runbook: docs/runbooks/outbox-backlog.md
+          runbook: docs/OPERATIONS_RUNBOOK.md
 
       - alert: DeadLetterGrowth
         expr: sum by (service) (increase(kafka_consumer_dlt_total[15m])) > 0
@@ -35,7 +35,7 @@ groups:
           severity: warning
         annotations:
           summary: "{{ $labels.service }} routed at least one event to its dead-letter topic in the last 15m"
-          runbook: docs/runbooks/dlt-growth.md
+          runbook: docs/OPERATIONS_RUNBOOK.md
 
       - alert: StuckOrderSpike
         expr: sum(increase(reconciliation_stuck_orders_total[15m])) > 3
@@ -44,7 +44,7 @@ groups:
           severity: warning
         annotations:
           summary: "More than 3 orders newly flagged stuck in the last 15m (demo threshold)"
-          runbook: docs/runbooks/stuck-orders.md
+          runbook: docs/OPERATIONS_RUNBOOK.md
 
       - alert: ReconciliationRunFailing
         expr: sum(increase(reconciliation_run_seconds_count{outcome="failed"}[15m])) > 0
@@ -53,7 +53,7 @@ groups:
           severity: critical
         annotations:
           summary: "Order Service's reconciliation run failed at least once in the last 15m"
-          runbook: docs/runbooks/stuck-orders.md
+          runbook: docs/OPERATIONS_RUNBOOK.md
 
       - alert: ServiceUnavailable
         expr: up{job=~"order-service|inventory-service|payment-service|fulfillment-service"} == 0
@@ -62,4 +62,4 @@ groups:
           severity: critical
         annotations:
           summary: "Prometheus cannot scrape {{ $labels.job }} — it is down or unreachable"
-          runbook: docs/runbooks/outbox-backlog.md
+          runbook: docs/OPERATIONS_RUNBOOK.md

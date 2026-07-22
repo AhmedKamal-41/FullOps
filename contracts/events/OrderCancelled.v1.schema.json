@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://fulfillops.dev/contracts/events/OrderCancelled.v1.schema.json",
   "title": "OrderCancelled.v1",
-  "description": "Order Service moved an order to CANCELLED after observing InventoryRejected, PaymentDeclined, or an operator-triggered FulfillmentStatusChanged (CANCELLED) — see docs/DOMAIN_MODEL.md's compensation table.",
+  "description": "Order Service moved an order to CANCELLED after observing InventoryRejected, PaymentDeclined, or an operator-triggered FulfillmentStatusChanged (CANCELLED) — see docs/ARCHITECTURE.md's compensation table.",
   "allOf": [
     { "$ref": "EventEnvelope.v1.schema.json" },
     {

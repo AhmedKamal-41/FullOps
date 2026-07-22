@@ -1,5 +1,5 @@
--- Payment Service's own domain tables. See docs/DOMAIN_MODEL.md for the payment
--- lifecycle these constraints enforce, and docs/adr/0010-payment-simulator-resilience.md
+-- Payment Service's own domain tables. See docs/ARCHITECTURE.md for the payment
+-- lifecycle these constraints enforce, and docs/ARCHITECTURE.md
 -- for why authorization outcomes are decided by simulator_rules instead of a real
 -- payment network call.
 
@@ -103,9 +103,9 @@ INSERT INTO simulator_rules (rule_id, match_amount, outcome, failing_attempts, d
 
 -- Payment Service's own local projection of the order facts it needs, built from
 -- consuming order-service's OrderPlaced.v1 (the sanctioned "read events, don't read
--- another service's tables" pattern — see docs/adr/0001-service-boundaries.md).
--- Deliberately holds only what CLAUDE.md allows: order id, customer id, currency,
--- and amount — never line items, never anything card- or PII-shaped.
+-- another service's tables" pattern — see docs/ARCHITECTURE.md).
+-- Deliberately holds only order id, customer id, currency, and amount — never line
+-- items, never anything card- or PII-shaped.
 CREATE TABLE order_payment_context (
     order_id        UUID PRIMARY KEY,
     customer_id     UUID NOT NULL,

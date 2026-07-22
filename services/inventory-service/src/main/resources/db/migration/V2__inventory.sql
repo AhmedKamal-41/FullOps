@@ -1,7 +1,7 @@
 -- Inventory Service's own domain tables: fictional products, authoritative stock
 -- levels, order reservations and their line items, and an audit trail covering
--- every stock mutation regardless of cause. See docs/DOMAIN_MODEL.md for the
--- StockItem/Reservation model and docs/adr/0006-postgresql-per-service.md for why
+-- every stock mutation regardless of cause. See docs/ARCHITECTURE.md for the
+-- StockItem/Reservation model and docs/ARCHITECTURE.md for why
 -- PostgreSQL (not Redis) is what decides whether a reservation succeeds.
 
 CREATE TABLE product (

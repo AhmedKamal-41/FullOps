@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 11 failure demo: stops Redis, hits inventory-service's availability read endpoint (backed
+# Failure demo: stops Redis, hits inventory-service's availability read endpoint (backed
 # by InventoryAvailabilityCache), and confirms it keeps answering correctly straight from
 # PostgreSQL — with the cache-failure counter incrementing to prove the fallback path, not a
 # silent miss — then restarts Redis and confirms the cache resumes. Starts only inventory-service

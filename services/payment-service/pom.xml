@@ -78,7 +78,7 @@
             <artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
         </dependency>
         <!-- Framework-agnostic Resilience4j core libraries, not the resilience4j-spring-boot3/4
-             starter — see docs/adr/0010-payment-simulator-resilience.md. -->
+             starter — see docs/ARCHITECTURE.md. -->
         <dependency>
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-circuitbreaker</artifactId>

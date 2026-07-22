@@ -3,7 +3,7 @@
 # empty data directory (standard docker-entrypoint-initdb.d behavior). Creates one
 # database and one owning user per service, then revokes the default PUBLIC connect
 # privilege so a service's credentials cannot reach another service's database —
-# see docs/adr/0001-service-boundaries.md.
+# see docs/ARCHITECTURE.md.
 set -euo pipefail
 
 create_service_database() {

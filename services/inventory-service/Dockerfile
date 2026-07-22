@@ -2,13 +2,13 @@
 #
 # Build context is the repository root (this service's pom.xml depends on the root
 # reactor pom and the sibling service pom.xml files just to resolve the module tree,
-# not on any sibling source code — see docs/adr/0001-service-boundaries.md).
+# not on any sibling source code — see docs/ARCHITECTURE.md).
 #   docker build -f services/inventory-service/Dockerfile -t fulfillops/inventory-service .
 #
 # The base images are pinned to an immutable multi-arch index digest (not just the
 # 21-jdk/21-jre-noble tag) so a rebuild always resolves to the exact same base — the
 # tag is kept alongside the digest only as a human-readable hint. Refresh both digests
-# together when bumping the JDK; docs/RELEASE.md documents how.
+# together when bumping the JDK.
 
 FROM eclipse-temurin:21-jdk-noble@sha256:35685c7e23352983a48882d97cd9875f5284c228db71d1e2476e5e6c1bab1080 AS build
 WORKDIR /workspace

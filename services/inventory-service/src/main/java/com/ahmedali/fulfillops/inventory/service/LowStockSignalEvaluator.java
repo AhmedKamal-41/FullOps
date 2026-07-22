@@ -50,7 +50,7 @@ public class LowStockSignalEvaluator {
         new LowStockPayload(sku, quantityAfter, threshold, isBelowThreshold));
   }
 
-  // InventoryLowStock.v1 has no order to key by (see contracts/events/README.md's aggregateId
+  // InventoryLowStock.v1 has no order to key by (see contracts/README.md's aggregateId
   // exception for this event) — a name-based UUID keeps every event for one SKU on the same Kafka
   // partition without needing a lookup table to remember a SKU's assigned UUID.
   private static UUID aggregateIdForSku(String sku) {

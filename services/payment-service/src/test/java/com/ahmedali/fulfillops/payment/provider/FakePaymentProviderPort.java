@@ -6,7 +6,7 @@ import java.util.function.Supplier;
 
 /**
  * A scripted PaymentProviderPort test double: each call to authorize() consumes the next scripted
- * response. This is the "fake provider port" the phase charter asks for — it lets
+ * response. This is the "fake provider port" the requirements ask for — it lets
  * PaymentAuthorizationClientTest prove retry/circuit-breaker mechanics deterministically,
  * completely decoupled from SimulatorPaymentProviderAdapter's own amount-driven business rules.
  */

@@ -12,7 +12,7 @@ emits its own. This catalog lists every event, its producer, its consumers, and 
   `contracts` module's test (14 tests, run in CI's event-contract job).
 - **Delivery:** at least once. Correctness comes from idempotent consumers (an inbox keyed
   by `(event_id, consumer_name)`) and database constraints — **never** from an
-  exactly-once claim. See [ADR 0004](adr/0004-at-least-once-delivery.md).
+  exactly-once claim. See [ARCHITECTURE.md](ARCHITECTURE.md#at-least-once-delivery-and-idempotency).
 - **Key:** every event is keyed by order id, so all events for one order keep their relative
   order on a partition.
 
@@ -29,7 +29,7 @@ transactional outbox); other services consume it.
 | `fulfillops.fulfillment.events` | Fulfillment Service |
 
 Each topic also has Spring Kafka `@RetryableTopic` retry topics and a `-dlt` dead-letter
-topic (see [ADR 0009](adr/0009-kafka-topology-and-retry.md)).
+topic (see [ARCHITECTURE.md](ARCHITECTURE.md#kafka-topics-and-event-flow)).
 
 ## Events
 
@@ -70,7 +70,7 @@ topic (see [ADR 0009](adr/0009-kafka-topology-and-retry.md)).
 
 No event payload ever carries a card number, bank detail, or SSN. Payment events carry only
 the order id, amount, currency, status, and a decline reason code — nothing card-shaped. See
-[`docs/SECURITY.md`](SECURITY.md).
+[`../SECURITY.md`](../SECURITY.md).
 
 ## Versioning
 

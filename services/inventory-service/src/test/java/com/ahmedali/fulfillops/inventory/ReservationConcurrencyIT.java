@@ -32,8 +32,8 @@ import tools.jackson.databind.ObjectMapper;
  * Proves the no-oversell invariant under real concurrency, not just sequential replay: more
  * distinct orders than available units race to reserve the same SKU. Uses the pool.submit(...) +
  * Future + CountDownLatch pattern from order-service's OrderConcurrencyIT — never
- * ExecutorService.invokeAll(...), which deadlocked that test during Phase 4 because it blocks the
- * very thread that must release the latch (see docs/PHASE_STATUS.md's Phase 4 notes).
+ * ExecutorService.invokeAll(...), which deadlocked that test because it blocks the
+ * very thread that must release the latch.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")

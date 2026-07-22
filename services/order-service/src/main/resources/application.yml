@@ -9,7 +9,7 @@ spring:
         # during a real Kafka outage (see tests/failure-scenarios/kafka-outage-outbox-backlog.sh)
         # — with only one thread, that block would also stop OutboxBacklogMetrics and (in
         # order-service) ReconciliationScheduler from ever running, going dark on exactly the
-        # incident this phase's dashboards/alerts exist to surface.
+        # incident these dashboards/alerts exist to surface.
         size: 5
   kafka:
     producer:
@@ -63,7 +63,7 @@ app:
     cache:
       ttl-seconds: 30
   cors:
-    # The ops console's dev server (Phase 10) — not a secret, override per environment if needed.
+    # The ops console's dev server — not a secret, override per environment if needed.
     allowed-origin: http://localhost:5173
 
 management:

@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * The incident lifecycle — list, acknowledge, assign, resolve. OPERATOR/ADMIN only (see
- * SecurityConfig). See docs/runbooks/INCIDENT_MANAGEMENT.md for what each action means.
+ * SecurityConfig). See docs/OPERATIONS_RUNBOOK.md for what each action means.
  */
 @RestController
 @RequestMapping("/api/v1/ops/incidents")

@@ -867,7 +867,7 @@
             "id": "e111277c-d085-4fba-86ea-7c5f68a0c610",
             "clientId": "fulfillops-console",
             "name": "FulfillOps Ops Console",
-            "description": "Public SPA client for the future React operations console (Phase 10)",
+            "description": "Public SPA client for the React operations console",
             "surrogateAuthRequired": false,
             "enabled": true,
             "alwaysDisplayInConsole": false,

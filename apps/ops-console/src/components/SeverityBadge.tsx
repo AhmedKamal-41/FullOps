@@ -2,7 +2,7 @@ import { Badge } from "@mantine/core";
 import type { IncidentKind } from "../api/types";
 
 // Presentational only — the backend has no "severity" concept for IncidentKind. This is
-// a client-side triage aid, not a new backend concept (see the Phase 10 plan).
+// a client-side triage aid, not a new backend concept.
 const SEVERITY: Record<IncidentKind, { label: string; color: string }> = {
   COMPENSATION_EXHAUSTED: { label: "High", color: "red" },
   CANCELLATION_AFTER_DISPATCH: { label: "Medium", color: "orange" },

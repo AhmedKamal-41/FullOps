@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Phase 11 failure demo: stops the Kafka broker, places orders while it's down (the outbox
-# pattern means the REST write still succeeds — see docs/adr/0004-at-least-once-delivery.md),
+# Failure demo: stops the Kafka broker, places orders while it's down (the outbox
+# pattern means the REST write still succeeds — see docs/ARCHITECTURE.md),
 # watches Order Service's outbox_backlog_count and outbox_oldest_unpublished_age_seconds gauges
 # grow via /actuator/prometheus, then restarts Kafka and watches the backlog drain back to zero.
 # Starts only order-service locally against the running Compose infra and stops it on exit.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 11 failure demo: starts order-service and inventory-service only — deliberately leaving
+# Failure demo: starts order-service and inventory-service only — deliberately leaving
 # payment-service down — so a placed order reserves stock and then has nowhere to go, stuck in
 # INVENTORY_RESERVED. Runs order-service with a drastically shortened reconciliation interval and
 # stuck-threshold (seconds instead of the production-realistic 60s/30m — see application.yml) so

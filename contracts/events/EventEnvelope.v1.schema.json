@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://fulfillops.dev/contracts/events/EventEnvelope.v1.schema.json",
   "title": "EventEnvelope.v1",
-  "description": "Generic envelope every FulfillOps event uses. Event-specific schemas (e.g. OrderPlaced.v1.schema.json) extend this with allOf and narrow eventType, eventVersion, and payload. See contracts/events/README.md for the full field-by-field convention.",
+  "description": "Generic envelope every FulfillOps event uses. Event-specific schemas (e.g. OrderPlaced.v1.schema.json) extend this with allOf and narrow eventType, eventVersion, and payload. See contracts/README.md for the full field-by-field convention.",
   "type": "object",
   "additionalProperties": false,
   "required": [

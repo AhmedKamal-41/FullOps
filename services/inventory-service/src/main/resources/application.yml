@@ -8,7 +8,7 @@ spring:
         # the process. OutboxRelay's publish loop can legitimately block for tens of seconds
         # during a real Kafka outage (see tests/failure-scenarios/kafka-outage-outbox-backlog.sh)
         # — with only one thread, that block would also stop OutboxBacklogMetrics from ever
-        # running, going dark on exactly the incident this phase's dashboards/alerts exist to
+        # running, going dark on exactly the incident these dashboards/alerts exist to
         # surface.
         size: 5
   kafka:

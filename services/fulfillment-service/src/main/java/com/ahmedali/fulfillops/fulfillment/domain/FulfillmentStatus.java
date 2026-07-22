@@ -1,6 +1,6 @@
 package com.ahmedali.fulfillops.fulfillment.domain;
 
-/** The states from docs/DOMAIN_MODEL.md's fulfillment state machine. */
+/** The states from docs/ARCHITECTURE.md's fulfillment state machine. */
 public enum FulfillmentStatus {
   ASSIGNED,
   PICKING,

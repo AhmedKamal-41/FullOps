@@ -31,7 +31,7 @@ interface StageDuration {
 
 // The backend has no "stage durations for this order" endpoint — this does the same
 // consecutive-timestamp subtraction that order_stage_duration does server-side for the
-// KPI aggregate, just for one order's own timeline entries (see the Phase 10 plan).
+// KPI aggregate, just for one order's own timeline entries.
 function computeStageDurations(entries: TimelineEntryResponse[]): StageDuration[] {
   const statusChanges = entries.filter((entry) => entry.type === "STATUS_CHANGE" && entry.status);
   return statusChanges.map((entry, index) => {

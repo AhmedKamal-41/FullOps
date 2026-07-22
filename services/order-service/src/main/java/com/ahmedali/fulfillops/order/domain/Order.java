@@ -16,9 +16,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * The version column is an optimistic lock: Phase 4 never updates an order after creation, but
- * every later phase that does (inventory reserved, payment authorized, ...) will, and this is what
- * stops two concurrent updates from silently overwriting each other.
+ * The version column is an optimistic lock: order creation never updates an order after the fact,
+ * but later lifecycle changes that do (inventory reserved, payment authorized, ...) will, and this
+ * is what stops two concurrent updates from silently overwriting each other.
  */
 @Entity
 @Table(name = "orders")

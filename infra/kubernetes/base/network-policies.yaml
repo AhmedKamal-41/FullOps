@@ -3,7 +3,7 @@
 # Enforcement note: kind's default CNI (kindnet) does NOT enforce NetworkPolicy, so on a
 # plain kind cluster these are inert documentation of intent. They ARE enforced on a
 # cluster running Calico, Cilium, or another policy-capable CNI. They are included so the
-# intended posture travels with the manifests. See infra/kubernetes/README.md.
+# intended posture travels with the manifests. See infra/README.md.
 #
 # Kubelet-originated traffic (liveness/readiness probes) and `kubectl port-forward` come
 # from the node, not from a pod, so they are not subject to these policies — the smoke

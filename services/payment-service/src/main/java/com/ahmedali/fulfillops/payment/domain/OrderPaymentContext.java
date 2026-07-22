@@ -11,8 +11,8 @@ import java.util.UUID;
 /**
  * Payment Service's own local copy of the order facts it needs, built by consuming order-service's
  * OrderPlaced.v1 — never by reading order-service's database. Deliberately holds only order id,
- * customer id, currency, and amount, per CLAUDE.md's restriction on what order events (and anything
- * derived from them) may carry.
+ * customer id, currency, and amount — never card- or PII-shaped fields, keeping order events (and
+ * anything derived from them) free of that data.
  */
 @Entity
 @Table(name = "order_payment_context")

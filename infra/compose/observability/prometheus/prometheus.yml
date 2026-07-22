@@ -1,5 +1,5 @@
 # Local-only scrape config. Every app service runs on the host (see `make run-order` etc. and
-# docs/runbooks/local-infrastructure.md), not inside this Compose network, so Prometheus reaches
+# docs/OPERATIONS_RUNBOOK.md), not inside this Compose network, so Prometheus reaches
 # them via host.docker.internal — the container's `extra_hosts` entry in docker-compose.yml is
 # what makes that hostname resolve on Linux (Docker Desktop provides it natively).
 global:

@@ -39,11 +39,10 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * Drives OrderEventsListener.onMessage(...) directly (same technique the Phase 3 scaffold test
- * used) against a full application context backed by Testcontainers Postgres/Kafka/Redis, and
- * asserts directly against the database what the reservation transaction actually committed. Covers
- * the "full reservation", "insufficient one item", "atomic multi-item rejection", and "duplicate
- * event" scenarios from the Phase 5 charter.
+ * Drives OrderEventsListener.onMessage(...) directly against a full application context backed by
+ * Testcontainers Postgres/Kafka/Redis, and asserts directly against the database what the
+ * reservation transaction actually committed. Covers the "full reservation", "insufficient one
+ * item", "atomic multi-item rejection", and "duplicate event" scenarios.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")

@@ -49,7 +49,7 @@ spec:
                 secretKeyRef:
                   name: fulfillops-secrets
                   key: REDIS_PASSWORD
-          # Boot's dedicated liveness/readiness probe groups (Phase 2 enabled them).
+          # Boot's dedicated liveness/readiness probe groups.
           # A generous startup probe covers slow JVM warm-up so liveness never trips
           # during boot.
           startupProbe:

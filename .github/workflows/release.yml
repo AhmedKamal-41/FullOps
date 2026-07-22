@@ -3,8 +3,8 @@
 # attaches them to the GitHub Release as downloadable artifacts.
 #
 # Container images are intentionally NOT published here: this project does not push to
-# a registry as part of its automated build (see docs/RELEASE.md for the rationale and
-# the manual publish steps if a registry is ever wanted).
+# a registry as part of its automated build. Images can be published manually to a
+# registry you control if one is ever wanted.
 
 name: Release
 

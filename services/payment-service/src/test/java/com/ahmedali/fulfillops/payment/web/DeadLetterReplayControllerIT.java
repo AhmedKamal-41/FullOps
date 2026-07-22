@@ -39,7 +39,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Covers Phase 8's ADMIN-only dead-letter replay endpoint against real infrastructure: a malformed
+ * Covers the ADMIN-only dead-letter replay endpoint against real infrastructure: a malformed
  * OrderPlaced event (missing customerId, the same fast non-retryable path
  * OrderEventsListener.parseContextOrFailNonRetryably exercises) reaches this service's real
  * dead-letter topic. From there, an ADMIN can list and replay it — which republishes the exact

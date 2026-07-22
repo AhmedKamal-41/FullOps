@@ -23,7 +23,7 @@ import tools.jackson.databind.ObjectMapper;
  * happens in its own short transaction inside OutboxEventRepository; the Kafka send below runs
  * outside any transaction so a slow broker never holds a DB lock open. If this process crashes
  * after Kafka acknowledges but before the row is marked PUBLISHED, the next poll republishes the
- * same event — this is expected (see docs/adr/0004-at-least-once-delivery.md) and is why every
+ * same event — this is expected (see docs/ARCHITECTURE.md) and is why every
  * consumer must be idempotent, not why this class needs to be cleverer.
  */
 @Component

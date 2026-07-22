@@ -1,5 +1,5 @@
 -- Order Service's own domain tables: an order, its line items, its status history,
--- and the idempotency ledger for POST /api/v1/orders. See docs/DOMAIN_MODEL.md for
+-- and the idempotency ledger for POST /api/v1/orders. See docs/ARCHITECTURE.md for
 -- the order status state machine these constraints enforce.
 
 CREATE TABLE orders (

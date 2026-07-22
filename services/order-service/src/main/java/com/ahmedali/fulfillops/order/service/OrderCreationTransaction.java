@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
  * A separate bean (not just a method on OrderService) so its @Transactional boundary is a real
  * Spring-proxy call from the outside, not a same-class self-invocation that Spring would silently
  * ignore. Order, its items, the initial status history row, the OrderPlaced.v1 outbox event, and
- * the idempotency ledger row all commit together or not at all — see docs/adr/0003-outbox-inbox.md.
+ * the idempotency ledger row all commit together or not at all — see docs/ARCHITECTURE.md.
  * saveAndFlush on the last line forces the idempotency table's unique-constraint check to happen
  * here, synchronously, so a lost race throws where OrderService can catch it.
  */

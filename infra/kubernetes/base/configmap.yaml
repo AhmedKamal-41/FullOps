@@ -1,6 +1,6 @@
 # Non-secret configuration shared by all four services. The stateful infrastructure
 # (PostgreSQL, Kafka, Redis, Keycloak) lives OUTSIDE the cluster for this portfolio —
-# see infra/kubernetes/README.md for that trade-off — so these are the addresses at
+# see infra/README.md for that trade-off — so these are the addresses at
 # which the pods reach it. The values here are placeholders wired for a local kind
 # cluster reaching host-run infrastructure; override them per environment.
 #

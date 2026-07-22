@@ -1,10 +1,9 @@
 -- Baseline migration: marks database ownership and creates the outbox/inbox
--- tables every service needs for Kafka choreography (see docs/adr/0003-outbox-inbox.md
--- and docs/adr/0004-at-least-once-delivery.md). No domain tables yet — those belong
--- to the phase that introduces the owning feature.
+-- tables every service needs for Kafka choreography (see docs/ARCHITECTURE.md). No domain tables yet — those belong
+-- to the migration that introduces the owning feature.
 
 COMMENT ON DATABASE payment_db IS
-    'Owned exclusively by payment-service. No other service may connect to this database. See docs/adr/0001-service-boundaries.md.';
+    'Owned exclusively by payment-service. No other service may connect to this database. See docs/ARCHITECTURE.md.';
 
 -- Rows this service has produced, written in the same transaction as the domain
 -- change they describe, and relayed to Kafka by a separate process. A row moves

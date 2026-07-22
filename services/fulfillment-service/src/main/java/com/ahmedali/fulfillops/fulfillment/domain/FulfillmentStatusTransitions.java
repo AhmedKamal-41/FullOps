@@ -4,7 +4,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The allowed forward-advance transitions from docs/DOMAIN_MODEL.md's fulfillment state machine,
+ * The allowed forward-advance transitions from docs/ARCHITECTURE.md's fulfillment state machine,
  * made explicit and checkable in code — the same shape as order-service's OrderStatusTransitions.
  * Cancellation is deliberately not part of this table: it has its own rule (allowed from any
  * non-terminal, pre-DISPATCHED status) enforced separately by FulfillmentTransition, since /cancel
