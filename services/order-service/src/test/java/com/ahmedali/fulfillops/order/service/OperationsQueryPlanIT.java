@@ -12,8 +12,10 @@ import com.ahmedali.fulfillops.order.domain.OrderStageDuration;
 import com.ahmedali.fulfillops.order.domain.OrderStageDurationRepository;
 import com.ahmedali.fulfillops.order.domain.OrderStatus;
 import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +29,15 @@ import org.springframework.test.context.ActiveProfiles;
  * V4__operations.sql defines, on a realistically seeded dataset — a real, checkable assertion
  * (EXPLAIN's own plan output), never a fabricated latency or throughput number (this project
  * forbids publishing those without a command in this repo actually producing them).
+ *
+ * <p>The EXPLAIN runs with sequential and parallel scans disabled on its own connection. That keeps
+ * the assertion about the one thing this test owns — that the index exists and the query is able to
+ * use it — and off the one thing it must not depend on: Postgres's cost-based choice between an
+ * index scan and a (possibly parallel) sequential scan, which shifts with the runner's CPU count,
+ * memory settings, and table statistics. Without this, the test passes on a developer laptop and
+ * flakes on a busier/many-core CI runner that costs a parallel Seq Scan as cheaper. A genuinely
+ * missing or inapplicable index still shows up as a Seq Scan here even with seqscan disabled, so
+ * the regression this guards against is still caught.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")
@@ -49,12 +60,10 @@ class OperationsQueryPlanIT {
   void theWorkQueueStatusFilterUsesAnIndexScanNotASequentialScan() {
     seedRealisticData();
 
-    List<String> plan =
-        jdbcTemplate.queryForList(
-            "EXPLAIN SELECT * FROM order_operations_projection WHERE status = 'PICKING'",
-            String.class);
+    String planText =
+        explainWithIndexScanPreferred(
+            "EXPLAIN SELECT * FROM order_operations_projection WHERE status = 'PICKING'");
 
-    String planText = String.join("\n", plan);
     assertThat(planText)
         .as("query plan:\n%s", planText)
         .containsIgnoringCase("idx_ops_projection_status");
@@ -64,19 +73,39 @@ class OperationsQueryPlanIT {
   void theStageDurationPercentileQueryUsesAnIndexScanNotASequentialScan() {
     seedRealisticData();
 
-    List<String> plan =
-        jdbcTemplate.queryForList(
+    String planText =
+        explainWithIndexScanPreferred(
             """
             EXPLAIN SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY duration_seconds)
             FROM order_stage_duration
             WHERE stage = 'PICKING' AND exited_at BETWEEN '2020-01-01' AND '2030-01-01'
-            """,
-            String.class);
+            """);
 
-    String planText = String.join("\n", plan);
     assertThat(planText)
         .as("query plan:\n%s", planText)
         .containsIgnoringCase("idx_stage_duration_stage_exited_at");
+  }
+
+  // Runs the EXPLAIN on a single connection with sequential and parallel scans disabled, so the
+  // plan reflects whether the index CAN serve the query rather than whether the planner's
+  // hardware-sensitive cost model happens to pick it. The settings are session-local, so they must
+  // share the one connection with the EXPLAIN — separate JdbcTemplate calls could land on different
+  // pooled connections.
+  private String explainWithIndexScanPreferred(String explainSql) {
+    return jdbcTemplate.execute(
+        (Connection connection) -> {
+          try (Statement statement = connection.createStatement()) {
+            statement.execute("SET enable_seqscan = off");
+            statement.execute("SET max_parallel_workers_per_gather = 0");
+            StringBuilder plan = new StringBuilder();
+            try (ResultSet rows = statement.executeQuery(explainSql)) {
+              while (rows.next()) {
+                plan.append(rows.getString(1)).append('\n');
+              }
+            }
+            return plan.toString();
+          }
+        });
   }
 
   private void seedRealisticData() {
