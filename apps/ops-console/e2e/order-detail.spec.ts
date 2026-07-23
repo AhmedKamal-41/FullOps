@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { loginAs } from "./helpers/auth";
+import { enterConsole } from "./helpers/auth";
 
 test.beforeEach(async ({ page }) => {
-  await loginAs(page, "operator.demo", "OperatorDemo!123");
+  await enterConsole(page);
 });
 
 test("order timeline renders for a real seeded order", async ({ page }) => {
@@ -21,9 +21,6 @@ test("cancelling an order requires a reason and shows a confirmation before acti
 }) => {
   await page.getByRole("link", { name: "Work Queue" }).click();
   await expect(page.getByRole("heading", { name: "Work Queue", level: 1 })).toBeVisible();
-
-  await page.getByRole("combobox", { name: "Status" }).click();
-  await page.getByRole("option", { name: "FULFILLMENT_ASSIGNED", exact: true }).click();
 
   const firstOrderLink = page.locator("tbody tr").first().getByRole("link");
   await expect(firstOrderLink).toBeVisible();

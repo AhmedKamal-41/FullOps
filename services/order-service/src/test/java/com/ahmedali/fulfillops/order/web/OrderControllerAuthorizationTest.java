@@ -31,11 +31,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Every request in these tests carries a JWT built with jwt() (see WhoAmIAuthorizationTest
- * for why this doesn't need a running Keycloak) — what's under test here is SecurityConfig's
- * URL-based role rules and OrderController's own ownership check, not token validation itself. The
- * subject is always set explicitly to a real UUID string: jwt()'s own default subject isn't one,
- * and the controller does UUID.fromString(sub).
+ * Every request in these tests carries a JWT built with jwt() (see WhoAmIAuthorizationTest for why
+ * this doesn't need a running Keycloak) — what's under test here is SecurityConfig's URL-based role
+ * rules and OrderController's own ownership check, not token validation itself. The subject is
+ * always set explicitly to a real UUID string: jwt()'s own default subject isn't one, and the
+ * controller does UUID.fromString(sub).
  */
 @WebMvcTest(OrderController.class)
 @Import({SecurityConfig.class, TestSecurityConfig.class, GlobalExceptionHandler.class})

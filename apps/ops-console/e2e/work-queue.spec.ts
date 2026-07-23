@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { loginAs } from "./helpers/auth";
+import { enterConsole } from "./helpers/auth";
 
 test.beforeEach(async ({ page }) => {
-  await loginAs(page, "operator.demo", "OperatorDemo!123");
+  await enterConsole(page);
   await page.getByRole("link", { name: "Work Queue" }).click();
   await expect(page.getByRole("heading", { name: "Work Queue", level: 1 })).toBeVisible();
 });

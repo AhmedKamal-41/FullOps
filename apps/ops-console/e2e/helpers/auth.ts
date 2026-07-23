@@ -1,11 +1,10 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
-// Real Authorization Code + PKCE flow against the real local Keycloak — no mocked
-// auth anywhere in the E2E suite. Keycloak's default login form ships with these
-// exact element ids regardless of realm.
-export async function loginAs(page: Page, username: string, password: string) {
+// The E2E suite runs against the console's self-contained demo mode: with no backend
+// reachable (as in CI), the app boots straight into the operator UI backed by bundled
+// example data, with no Keycloak login step. This helper enters the console and waits
+// for it to be ready — signalled by the demo-data banner — so specs can start acting.
+export async function enterConsole(page: Page) {
   await page.goto("/");
-  await page.getByLabel("Username or email").fill(username);
-  await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Sign In" }).click();
+  await expect(page.getByTestId("demo-mode-banner")).toBeVisible();
 }

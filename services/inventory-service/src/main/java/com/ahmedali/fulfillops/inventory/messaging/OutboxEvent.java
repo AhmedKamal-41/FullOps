@@ -10,9 +10,9 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 /**
- * Maps to the outbox_event table. A row here and the domain
- * change it describes are written in the same local transaction (see OutboxEventWriter); a separate
- * OutboxRelay poller is what actually reaches Kafka.
+ * Maps to the outbox_event table. A row here and the domain change it describes are written in the
+ * same local transaction (see OutboxEventWriter); a separate OutboxRelay poller is what actually
+ * reaches Kafka.
  */
 @Entity
 @Table(name = "outbox_event")

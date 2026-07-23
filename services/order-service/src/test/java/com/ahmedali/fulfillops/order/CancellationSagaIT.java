@@ -34,8 +34,8 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Drives the four new lifecycle listeners and OrderCancellationService directly against a full
- * application context backed by Testcontainers Postgres/Kafka/Redis, covering the full cancellation saga:
- * happy path to DELIVERED, inventory rejection, payment decline + release, duplicate and
+ * application context backed by Testcontainers Postgres/Kafka/Redis, covering the full cancellation
+ * saga: happy path to DELIVERED, inventory rejection, payment decline + release, duplicate and
  * out-of-order events, and cancellation before/after authorization and after dispatch.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)

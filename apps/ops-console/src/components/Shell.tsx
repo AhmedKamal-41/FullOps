@@ -68,7 +68,7 @@ export function Shell({ children }: { children: ReactNode }) {
         {isDemoMode && (
           <Alert
             color="yellow"
-            variant="filled"
+            variant="light"
             mb="md"
             title="Demo data"
             role="status"

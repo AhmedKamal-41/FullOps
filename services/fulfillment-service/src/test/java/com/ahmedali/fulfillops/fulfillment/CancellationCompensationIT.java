@@ -23,10 +23,10 @@ import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Covers OrderCancellationRequestedListener: cancels a still-cancellable fulfillment, and
- * is a safe no-op when there's no fulfillment for the order yet, it's already cancelled, or it can
- * no longer be cancelled (DISPATCHED) — Order Service's reconciliation is the safety net for that
- * last case, not an error surfaced here.
+ * Covers OrderCancellationRequestedListener: cancels a still-cancellable fulfillment, and is a safe
+ * no-op when there's no fulfillment for the order yet, it's already cancelled, or it can no longer
+ * be cancelled (DISPATCHED) — Order Service's reconciliation is the safety net for that last case,
+ * not an error surfaced here.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")

@@ -25,11 +25,11 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
- * Covers two required scenarios: outbox persistence, and an outbox event actually
- * reaching Kafka (including correlation propagation into headers). Uses a dedicated consumer group
- * so this test's own verification consumer doesn't compete with the service's real
- * InboxEventListener, which is also live during this test and will independently pick up the same
- * message — Kafka consumer groups each get their own copy, so that's expected, not a conflict.
+ * Covers two required scenarios: outbox persistence, and an outbox event actually reaching Kafka
+ * (including correlation propagation into headers). Uses a dedicated consumer group so this test's
+ * own verification consumer doesn't compete with the service's real InboxEventListener, which is
+ * also live during this test and will independently pick up the same message — Kafka consumer
+ * groups each get their own copy, so that's expected, not a conflict.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")

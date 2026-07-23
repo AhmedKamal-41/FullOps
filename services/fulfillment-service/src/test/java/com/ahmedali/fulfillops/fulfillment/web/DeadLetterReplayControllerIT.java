@@ -40,8 +40,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Covers the ADMIN-only dead-letter replay endpoint against real infrastructure: an ADMIN can
- * list and replay a dead-lettered event — which republishes the exact original bytes onto the real
+ * Covers the ADMIN-only dead-letter replay endpoint against real infrastructure: an ADMIN can list
+ * and replay a dead-lettered event — which republishes the exact original bytes onto the real
  * original topic and flips its status — while a non-ADMIN is forbidden, an unknown event id 404s,
  * and replaying the same event twice is rejected as a conflict. The dead-letter row itself is
  * seeded directly through DeadLetterEventRecorder (the exact same bean every real @DltHandler in

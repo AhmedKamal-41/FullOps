@@ -32,9 +32,9 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Covers the "release idempotency" and "audit entries" scenarios for the release side of the
- * reservation state machine (RESERVED -> RELEASED). Not yet wired to any Kafka consumer —
- * see ReservationReleaseService's Javadoc for why — so these tests call the service directly, the
- * same way a future PaymentDeclined.v1 listener will.
+ * reservation state machine (RESERVED -> RELEASED). Not yet wired to any Kafka consumer — see
+ * ReservationReleaseService's Javadoc for why — so these tests call the service directly, the same
+ * way a future PaymentDeclined.v1 listener will.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")

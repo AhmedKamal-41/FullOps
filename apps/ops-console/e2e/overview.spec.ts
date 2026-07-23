@@ -1,9 +1,9 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { loginAs } from "./helpers/auth";
+import { enterConsole } from "./helpers/auth";
 
 test.beforeEach(async ({ page }) => {
-  await loginAs(page, "operator.demo", "OperatorDemo!123");
+  await enterConsole(page);
   await expect(page.getByRole("heading", { name: "Overview", level: 1 })).toBeVisible();
 });
 

@@ -41,12 +41,12 @@ import tools.jackson.databind.ObjectMapper;
  * Drives OrderEventsListener and InventoryReservedListener directly against a full application
  * context backed by Testcontainers Postgres/Kafka/Redis, asserting directly against the database
  * what the authorization flow actually committed. Covers the approved, declined,
- * duplicate-delivery, and missing-order-context scenarios. None of these
- * scenarios exercises the retry/circuit-breaker path itself (ResilienceIT owns that), but the
- * CircuitBreaker bean is still reset before each test here too: Spring caches and reuses one
- * ApplicationContext across every test class with this exact @SpringBootTest/@Import configuration,
- * so without a reset a prior ResilienceIT test that left the circuit OPEN would otherwise leak into
- * this class's "approved" test and make it flaky depending on run order.
+ * duplicate-delivery, and missing-order-context scenarios. None of these scenarios exercises the
+ * retry/circuit-breaker path itself (ResilienceIT owns that), but the CircuitBreaker bean is still
+ * reset before each test here too: Spring caches and reuses one ApplicationContext across every
+ * test class with this exact @SpringBootTest/@Import configuration, so without a reset a prior
+ * ResilienceIT test that left the circuit OPEN would otherwise leak into this class's "approved"
+ * test and make it flaky depending on run order.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")

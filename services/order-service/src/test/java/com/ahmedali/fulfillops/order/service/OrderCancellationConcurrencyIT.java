@@ -32,10 +32,10 @@ import org.springframework.test.context.ActiveProfiles;
  * arrive on a different Kafka topic, consumed by a different listener thread, so all three can
  * genuinely race to confirm the same tracker at once. Without a version column this was a silent
  * lost update — the row simply ended up missing one confirmation forever, with no exception and no
- * error logged, which is exactly what a live smoke run of the cancellation saga caught.
- * Calling OrderCancellationTransaction directly (not through Kafka) means this
- * test has to do the one retry @RetryableTopic would otherwise do on redelivery — that's the
- * production recovery path, not a workaround specific to this test.
+ * error logged, which is exactly what a live smoke run of the cancellation saga caught. Calling
+ * OrderCancellationTransaction directly (not through Kafka) means this test has to do the one
+ * retry @RetryableTopic would otherwise do on redelivery — that's the production recovery path, not
+ * a workaround specific to this test.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")

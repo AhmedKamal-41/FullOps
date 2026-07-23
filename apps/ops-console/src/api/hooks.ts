@@ -5,7 +5,8 @@ import { queryKeys } from "./queryKeys";
 import * as orderServiceApi from "./orderServiceApi";
 import type { DateRange, IncidentFilters, WorkQueueFilters } from "./orderServiceApi";
 import * as demo from "../demoData/fixtures";
-import type { IncidentResponse } from "./types";
+import { listDemoIncidents, updateDemoIncident } from "../demoData/demoStore";
+import type { IncidentResponse, Page, WorkQueueItemResponse } from "./types";
 
 export function useOverviewKpis(range: DateRange) {
   const isDemo = useDemoMode();
@@ -88,11 +89,25 @@ export function useWorkQueue(filters: WorkQueueFilters) {
     queryKey: queryKeys.workQueue(filters),
     queryFn: () =>
       isDemo
-        ? Promise.resolve(demo.demoWorkQueue)
+        ? Promise.resolve(filterDemoWorkQueue(filters))
         : orderServiceApi.fetchWorkQueue(accessToken!, filters),
     enabled: isDemo || Boolean(accessToken),
     placeholderData: (previous) => previous,
   });
+}
+
+// Demo mode applies the same status/customer filters the backend would, so the Work
+// Queue's filter controls and URL state behave the same against example data.
+function filterDemoWorkQueue(filters: WorkQueueFilters): Page<WorkQueueItemResponse> {
+  const content = demo.demoWorkQueue.content.filter((item) => {
+    if (filters.status && item.status !== filters.status) return false;
+    if (filters.customerId && item.customerId !== filters.customerId) return false;
+    return true;
+  });
+  return {
+    content,
+    page: { size: content.length || 20, number: 0, totalElements: content.length, totalPages: 1 },
+  };
 }
 
 export function useOrder(orderId: string) {
@@ -130,7 +145,13 @@ export function useCancelOrder(orderId: string) {
       isDemo
         ? Promise.resolve({ ...demo.demoOrder, orderId, status: "CANCELLATION_PENDING" as const })
         : orderServiceApi.cancelOrder(accessToken!, orderId, crypto.randomUUID(), reasonDetail),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (isDemo) {
+        // No backend to re-read from, so reflect the cancelled status directly in the cache
+        // rather than invalidating (which would refetch the original demo order fixture).
+        queryClient.setQueryData(queryKeys.order(orderId), result);
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: queryKeys.order(orderId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.orderTimeline(orderId) });
     },
@@ -152,7 +173,7 @@ export function useIncidents(filters: IncidentFilters) {
 }
 
 function filterDemoIncidents(filters: IncidentFilters) {
-  const content = demo.demoIncidents.content.filter((incident: IncidentResponse) => {
+  const content = listDemoIncidents().filter((incident: IncidentResponse) => {
     if (filters.status && incident.status !== filters.status) return false;
     if (filters.kind && incident.kind !== filters.kind) return false;
     if (filters.orderId && incident.orderId !== filters.orderId) return false;
@@ -176,9 +197,8 @@ function useIncidentMutation(
     mutationFn: () => {
       if (isDemo) {
         const current =
-          demo.demoIncidents.content.find((i) => i.incidentId === incidentId) ??
-          demo.demoIncidents.content[0];
-        return Promise.resolve(demoResult(current));
+          listDemoIncidents().find((i) => i.incidentId === incidentId) ?? listDemoIncidents()[0];
+        return Promise.resolve(updateDemoIncident(incidentId, demoResult(current)));
       }
       return liveCall(accessToken!);
     },
@@ -208,14 +228,12 @@ export function useAssignIncident(incidentId: string) {
   return useMutation({
     mutationFn: (assignee: string) => {
       if (isDemo) {
-        const current =
-          demo.demoIncidents.content.find((i) => i.incidentId === incidentId) ??
-          demo.demoIncidents.content[0];
-        return Promise.resolve({
-          ...current,
-          assignedTo: assignee,
-          assignedAt: new Date().toISOString(),
-        });
+        return Promise.resolve(
+          updateDemoIncident(incidentId, {
+            assignedTo: assignee,
+            assignedAt: new Date().toISOString(),
+          }),
+        );
       }
       return orderServiceApi.assignIncident(accessToken!, incidentId, assignee);
     },
@@ -232,16 +250,14 @@ export function useResolveIncident(incidentId: string) {
   return useMutation({
     mutationFn: (resolutionNote?: string) => {
       if (isDemo) {
-        const current =
-          demo.demoIncidents.content.find((i) => i.incidentId === incidentId) ??
-          demo.demoIncidents.content[0];
-        return Promise.resolve({
-          ...current,
-          status: "RESOLVED" as const,
-          resolvedAt: new Date().toISOString(),
-          resolvedBy: "demo-operator",
-          resolutionNote: resolutionNote ?? null,
-        });
+        return Promise.resolve(
+          updateDemoIncident(incidentId, {
+            status: "RESOLVED",
+            resolvedAt: new Date().toISOString(),
+            resolvedBy: "demo-operator",
+            resolutionNote: resolutionNote ?? null,
+          }),
+        );
       }
       return orderServiceApi.resolveIncident(accessToken!, incidentId, resolutionNote);
     },

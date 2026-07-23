@@ -25,8 +25,8 @@ import org.springframework.test.context.ActiveProfiles;
 /**
  * Confirms the work-queue/backlog and stage-duration-percentile queries actually use the indexes
  * V4__operations.sql defines, on a realistically seeded dataset — a real, checkable assertion
- * (EXPLAIN's own plan output), never a fabricated latency or throughput number (this project forbids
- * publishing those without a command in this repo actually producing them).
+ * (EXPLAIN's own plan output), never a fabricated latency or throughput number (this project
+ * forbids publishing those without a command in this repo actually producing them).
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")

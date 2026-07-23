@@ -11,9 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The incident acknowledge/assign/resolve lifecycle — see docs/OPERATIONS_RUNBOOK.md for
- * what each action means operationally. Every action writes one incident_action_history row, so the
- * full lifecycle (including the OPENED row IncidentService writes automatically) is always
+ * The incident acknowledge/assign/resolve lifecycle — see docs/OPERATIONS_RUNBOOK.md for what each
+ * action means operationally. Every action writes one incident_action_history row, so the full
+ * lifecycle (including the OPENED row IncidentService writes automatically) is always
  * reconstructable.
  */
 @Service
