@@ -1,4 +1,4 @@
-# FulfillOps — Order Fulfillment Operations Platform
+# FulfillOps - Order Fulfillment Operations Platform
 
 An event-driven order fulfillment and operations platform built with Java 21, Spring Boot, Kafka,
 PostgreSQL, React, and TypeScript. FulfillOps follows orders across inventory, payment, and warehouse
