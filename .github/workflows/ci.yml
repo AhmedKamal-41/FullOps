@@ -223,6 +223,9 @@ jobs:
           severity: CRITICAL
           ignore-unfixed: "true"
           exit-code: "1"
+          # With format: sarif the action otherwise reports (and gates exit-code on) ALL
+          # severities regardless of `severity`; this makes both honor CRITICAL only.
+          limit-severities-for-sarif: "true"
       - name: Upload scan results to code scanning
         if: always()
         uses: github/codeql-action/upload-sarif@v3
